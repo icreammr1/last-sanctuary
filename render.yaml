@@ -1,0 +1,15 @@
+# Render Blueprint — สร้างเซิร์ฟเวอร์เกมอัตโนมัติจาก repo นี้
+services:
+  - type: web
+    name: last-sanctuary-server
+    runtime: node
+    plan: free
+    buildCommand: npm install --prefix server
+    startCommand: node server/server.js
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: ALLOWED_ORIGINS
+        sync: false        # ใส่โดเมน Netlify ของคุณ เช่น https://your-game.netlify.app (เว้นว่าง = อนุญาตทุกที่)

@@ -1,0 +1,14 @@
+{
+  "name": "last-sanctuary",
+  "version": "1.0.0",
+  "private": true,
+  "description": "โบสถ์สุดท้าย — Tower Defense ร่วมมือ 1-4 คน (Phaser 3 + Node WebSocket)",
+  "scripts": {
+    "build": "node client/build.js",
+    "start": "node server/server.js",
+    "install:server": "npm install --prefix server",
+    "sim": "node tools/sim.js"
+  },
+  "engines": { "node": ">=18" },
+  "license": "MIT"
+}

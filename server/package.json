@@ -1,0 +1,10 @@
+{
+  "name": "last-sanctuary-server",
+  "version": "1.0.0",
+  "description": "Authoritative co-op server for Last Sanctuary (tower defense)",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" },
+  "dependencies": { "ws": "^8.18.0" },
+  "license": "MIT"
+}

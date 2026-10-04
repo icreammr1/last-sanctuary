@@ -1,0 +1,12 @@
+</script>
+<script>
+(function(){
+function load(src){return new Promise(function(res,rej){var s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
+load('https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js')
+.catch(function(){return load('https://cdnjs.cloudflare.com/ajax/libs/phaser/3.70.0/phaser.min.js');})
+.then(function(){window.__boot();})
+.catch(function(){document.getElementById('mMenu').innerHTML='<div class="sheet"><h2>โหลดเอนจินเกมไม่สำเร็จ</h2><p class="sub">ตรวจสอบอินเทอร์เน็ตแล้วรีเฟรชหน้านี้</p></div>';});
+})();
+</script>
+</body>
+</html>

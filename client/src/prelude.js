@@ -6,6 +6,7 @@ const mouse={x:760,y:520};
 const net={role:null,tp:null,started:false,conns:[],hostConn:null,peer:null,left:0,emap:new Map(),acc:0,code:'',idx:0,lobbyHost:false,lobbyN:0};
 const embers=[],fogs=[];
 let toastTimer=0;
+const SHAKE_MUL=[0,.35,1],SHAKE_NAME=['ปิด','น้อย','ปกติ'];let shakeLvl=1;
 function uiToast(msg){const e=$('toast');e.textContent=msg;e.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>e.classList.remove('on'),2400);}
 function showEnd(win,reason){
   let h='<div class="sheet"><h2>'+(win?'โบสถ์ยังตั้งอยู่!':'โบสถ์สุดท้ายล่มสลาย')+'</h2>';

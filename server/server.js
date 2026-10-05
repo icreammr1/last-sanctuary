@@ -11,6 +11,7 @@ const { WebSocketServer } = require('ws');
 const PORT = +process.env.PORT || 8080;
 const SIM_HZ = +process.env.SIM_HZ || 30;      // ความถี่คำนวณเกม
 const SNAP_HZ = +process.env.SNAP_HZ || 15;    // ความถี่ส่งภาพให้ผู้เล่น
+const GAME_SPEED = +process.env.GAME_SPEED || 2;   // ความเร็วเกมออนไลน์ (2 = เร็วขึ้น 2 เท่า)
 const MAX_ROOMS = +process.env.MAX_ROOMS || 100;
 const ALLOWED = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
 
@@ -78,6 +79,7 @@ class Room {
     };
     this.game = makeCore(HK);
     this.game.startGame(this.clients.length, false);
+    this.game.setNetSpeed(GAME_SPEED);
     this.clients.forEach((c, i) => this.send(c, { t: 'start', n: this.clients.length, idx: i }));
     this.last = Date.now();
     this.timer = setInterval(() => this.tick(), Math.floor(1000 / SIM_HZ));
@@ -93,7 +95,7 @@ class Room {
     this.acc += dt;
     let n = 0;
     while (this.acc >= step && n < 5) {
-      if (g.state === 'wave' || g.state === 'intermission') g.step(step);
+      if (g.state === 'wave' || g.state === 'intermission') g.step(step * GAME_SPEED);
       this.acc -= step; n++;
       if (g.state === 'over') break;
     }
@@ -171,5 +173,5 @@ const ping = setInterval(() => {
   });
 }, 25000);
 
-server.listen(PORT, () => console.log(`last-sanctuary server on :${PORT} (sim ${SIM_HZ}Hz, snap ${SNAP_HZ}Hz)`));
+server.listen(PORT, () => console.log(`last-sanctuary server on :${PORT} (sim ${SIM_HZ}Hz x${GAME_SPEED}, snap ${SNAP_HZ}Hz)`));
 process.on('SIGTERM', () => { clearInterval(ping); server.close(); process.exit(0); });

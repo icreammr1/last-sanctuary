@@ -44,7 +44,7 @@ function quickCast(i){
 }
 function waveText(w){
   const def=waveDef(w),cm=CFG.countMul[nP];
-  const parts=def.list.map(e=>EN[e[0]].n+' ×'+Math.max(1,Math.round(e[1]*cm)));
+  const parts=def.list.map(e=>EN[e[0]].n+' ×'+waveCount(w,e[1]));
   if(def.boss)parts.unshift('บอส '+EN[def.boss].n);
   return parts.join(' · ');
 }
@@ -88,7 +88,7 @@ function updateHud(){
   // me + xp
   sT($('me'),PLAYER_LABEL(ctl)+' · '+CLS[p.cls].name+' · Lv '+p.lvl+(p.sp>0?' · แต้มสกิล '+p.sp:'')+' · มานา '+Math.floor(p.mana)+'/'+maxMp(p));
   sF($('xpBar'),p.lvl>=CFG.maxLvl?1:p.exp/expNeed(p.lvl));
-  sT($('hint'),net.role?'1–4 สกิล · Shift+1–4 อัพ · F ชุบเพื่อน · กดปุ่มสกิลแล้วคลิกเลือกเป้าหมายได้':nP>1?'1–4 สกิล · Shift+1–4 อัพ · F ชุบ · TAB สลับตัวละคร · Space เริ่มคลื่น · P พัก · N ข้ามคลื่น':'1–4 สกิล · Shift+1–4 อัพ · F ชุบ · Space เริ่มคลื่น · P พัก · N ข้ามคลื่น');
+  sT($('hint'),net.role?'1–4 สกิล · W/S เดินขึ้นลง · Shift+1–4 อัพ · F ชุบเพื่อน':nP>1?'1–4 สกิล · W/S เดินขึ้นลง · Shift+1–4 อัพ · F ชุบ · TAB สลับตัวละคร · Space เริ่มคลื่น · P พัก':'1–4 สกิล · W/S เดินขึ้นลง · Shift+1–4 อัพ · F ชุบ · Space เริ่มคลื่น · P พัก');
   // banner
   const b=$('banner');let html='';
   if(state==='intermission'){
@@ -145,7 +145,35 @@ function updMouse(e){
   const r=canvas.getBoundingClientRect();
   mouse.x=(e.clientX-r.left)/r.width*W;mouse.y=(e.clientY-r.top)/r.height*H;
 }
+/* ---- เดินขึ้น/ลง (W/S หรือลูกศร หรือปุ่มบนจอ) ---- */
+const held={up:false,down:false};let lastMv=0;
+function applyMove(){
+  let d=(held.down?1:0)-(held.up?1:0);
+  if(paused||state==='menu'||state==='over'||state==='classSelect')d=0;
+  if(d!==lastMv){
+    lastMv=d;
+    if(net.role==='guest')netToHost({t:'mv',d});
+  }
+  if(net.role!=='guest')for(const p of players)p.mv=(p===players[ctl]?d:0);
+}
+function bindMove(){
+  window.addEventListener('keydown',e=>{
+    if(e.code==='KeyW'||e.code==='ArrowUp'){held.up=true;e.preventDefault();}
+    else if(e.code==='KeyS'||e.code==='ArrowDown'){held.down=true;e.preventDefault();}
+  });
+  window.addEventListener('keyup',e=>{
+    if(e.code==='KeyW'||e.code==='ArrowUp')held.up=false;
+    else if(e.code==='KeyS'||e.code==='ArrowDown')held.down=false;
+  });
+  window.addEventListener('blur',()=>{held.up=held.down=false;});
+  const hold=(id,k)=>{const b=$(id);const on=e=>{held[k]=true;e.preventDefault();},off=()=>{held[k]=false;};
+    b.addEventListener('pointerdown',on);b.addEventListener('pointerup',off);b.addEventListener('pointerleave',off);b.addEventListener('pointercancel',off);};
+  hold('mvUp','up');hold('mvDown','down');
+  $('bShake').onclick=()=>{shakeLvl=(shakeLvl+2)%3;$('bShake').textContent='สั่นจอ: '+SHAKE_NAME[shakeLvl];};
+  $('bShake').textContent='สั่นจอ: '+SHAKE_NAME[shakeLvl];
+}
 function bindInput(){
+  bindMove();
   canvas.addEventListener('pointermove',updMouse);
   canvas.addEventListener('contextmenu',e=>e.preventDefault());
   canvas.addEventListener('pointerdown',e=>{
@@ -164,7 +192,7 @@ function bindInput(){
     if(c==='KeyP'||(c==='Escape'&&targeting<0)){e.preventDefault();togglePause();return;}
     if(c==='Escape'){targeting=-1;return;}
     if(paused||state==='classSelect')return;
-    const idx={Digit1:0,Digit2:1,Digit3:2,Digit4:3,KeyQ:0,KeyW:1,KeyE:2,KeyR:3}[c];
+    const idx={Digit1:0,Digit2:1,Digit3:2,Digit4:3}[c];
     if(idx!==undefined){e.preventDefault();if(e.shiftKey)upgCmd(idx);else if(!e.repeat)quickCast(idx);return;}
     if(c==='Tab'){e.preventDefault();switchCtl();return;}
     if(c==='KeyF'){e.preventDefault();reviveCmd(null);return;}
@@ -203,6 +231,7 @@ function update(time,delta){
     if(!paused&&(state==='intermission'||state==='wave')){for(let k=0;k<speed;k++)step(dt);}
     if(net.role==='host'&&net.started&&state!=='over'){net.acc+=dt;if(net.acc>=1/(net.tp==='room'?8:15)){net.acc=0;netSnap();}}
   }
+  applyMove();
   ambient(dt);
   render();
   updateHud();
@@ -229,8 +258,8 @@ function castCmd(i,t){
   const p=players[ctl];if(!p)return false;
   if(net.role==='guest'){
     const s=SKILLS[p.cls][i];
-    if(!p.alive||p.rev||p.cd[i]>0)return false;
-    if(p.mana<s.mp){toast('มานาไม่พอ');return false;}
+    if(!p.alive||p.rev||p.cd[i]>.35)return false;
+    if(p.mana<s.mp-2){toast('มานาไม่พอ');return false;}
     netToHost({t:'cast',i,x:Math.round(t.x),y:Math.round(t.y),a:t.ally?t.ally.i:-1});
     p.cd[i]=.25;return true;
   }
@@ -463,7 +492,7 @@ function applyS(s){
   s.p.forEach((a,i)=>{players[i].rev=a.rv?{target:players[a.rv[0]],t:a.rv[1],dur:a.rv[2]}:null;});
   T=s.T;wave=s.w;interT=s.it;net.left=s.l;nP=players.length;
   if(s.ch<churchHp-.5){const h=$('hurt');h.classList.add('on');setTimeout(()=>h.classList.remove('on'),180);}
-  churchHp=s.ch;churchMax=s.cm;churchFlash=s.cf;if(s.sh>1)shake(s.sh);
+  churchHp=s.ch;churchMax=s.cm;churchFlash=s.cf;net.speed=s.sp||1;if(s.sh>0)shake(s.sh);
   ann=s.an?{t:s.an.t,s:s.an.s,until:T+s.an.r}:null;
   const prev=state;state=s.s;
   if(state==='classSelect'&&prev!=='classSelect')showClassSelect();
@@ -502,12 +531,13 @@ function applyV(v){
   fx=v.f;popups=v.po.map(a=>({x:a[0],y:a[1],txt:a[2],col:a[3],sz:a[4],t:a[5],dur:.85}));
 }
 function guestStep(dt){
-  T+=dt;
+  const g=dt*(net.speed||1);
+  T+=g;
   const k=Math.min(1,dt*12);
   for(const p of players){if(p.sx!==undefined){p.x+=(p.sx-p.x)*k;p.y+=(p.sy-p.y)*k;}}
-  for(const m of enemies){m.x+=(m.tx-m.x)*k;m.y+=(m.ty-m.y)*k;m.age+=dt;if(m.flash>0)m.flash-=dt;if(m.atkAnim>0)m.atkAnim-=dt;}
-  for(const b of projs){b.x+=b.vx*dt;b.y+=b.vy*dt;}
-  for(const f of fx)f.t+=dt;fx=fx.filter(f=>f.t<f.dur);
+  for(const m of enemies){m.x+=(m.tx-m.x)*k;m.y+=(m.ty-m.y)*k;m.age+=g;if(m.flash>0)m.flash-=dt;if(m.atkAnim>0)m.atkAnim-=dt;}
+  for(const b of projs){b.x+=b.vx*g;b.y+=b.vy*g;}
+  for(const f of fx)f.t+=g;fx=fx.filter(f=>f.t<f.dur);
   for(const q of popups)q.t+=dt;popups=popups.filter(q=>q.t<q.dur);
   if(churchFlash>0)churchFlash-=dt;
 }
@@ -515,4 +545,4 @@ function guestStep(dt){
 window.__boot=boot;
 window.__dbg={startGame,step,get state(){return state;},get wave(){return wave;},get players(){return players;},get enemies(){return enemies;},
   get churchHp(){return churchHp;},get T(){return T;},setBotAll(v){botAll=v;botsOn=true;},confirmAuto(){API.autoPick(window.__cls||['tank','mage','gunner','support']);},
-  upd:update,cr:create,net:{hostRoom,joinRoom,hostStart,pickClass,castCmd,upgCmd,lobbyStart(){netToHost({t:'start'});},get code(){return net.code;},get tp(){return net.tp;},get role(){return net.role;},get ctl(){return ctl;}},get nP(){return nP;}};
+  upd:update,cr:create,net:{hostRoom,joinRoom,hostStart,pickClass,castCmd,upgCmd,lobbyStart(){netToHost({t:'start'});},holdKey(k,v){held[k]=v;},get code(){return net.code;},get tp(){return net.tp;},get role(){return net.role;},get ctl(){return ctl;}},get nP(){return nP;}};

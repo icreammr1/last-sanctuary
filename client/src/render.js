@@ -3,7 +3,10 @@
 function band(g,x,y,w,h,c1,c2,n){const bh=h/n;for(let i=0;i<n;i++){g.fillStyle(lerpC(c1,c2,i/(n-1)),1);g.fillRect(x,y+i*bh,w,bh+1);}}
 function poly(g,pts,col,a){g.fillStyle(col,a===undefined?1:a);g.beginPath();g.moveTo(pts[0],pts[1]);for(let i=2;i<pts.length;i+=2)g.lineTo(pts[i],pts[i+1]);g.closePath();g.fillPath();}
 function polyLine(g,pts,col,w,a){g.lineStyle(w,col,a===undefined?1:a);g.beginPath();g.moveTo(pts[0],pts[1]);for(let i=2;i<pts.length;i+=2)g.lineTo(pts[i],pts[i+1]);g.strokePath();}
-function glow(g,x,y,r,col,a){g.fillStyle(col,a*.3);g.fillCircle(x,y,r);g.fillStyle(col,a*.3);g.fillCircle(x,y,r*.66);g.fillStyle(col,a*.5);g.fillCircle(x,y,r*.36);}
+let LOD=0;
+function glow(g,x,y,r,col,a){
+  if(LOD>=1){g.fillStyle(col,a*.35);g.fillCircle(x,y,r*.7);return;}
+  g.fillStyle(col,a*.3);g.fillCircle(x,y,r);g.fillStyle(col,a*.3);g.fillCircle(x,y,r*.66);g.fillStyle(col,a*.5);g.fillCircle(x,y,r*.36);}
 function shadow(g,x,y,w){g.fillStyle(0x000000,.38);g.fillEllipse(x,y,w,w*.3);}
 
 function prang(g,x,b,h,col){
@@ -108,7 +111,16 @@ function drawPret(g,m,X,k,fl){
   g.fillStyle(0xffd24a,1);g.fillCircle(X-8*k,y-94*k,1.2*k);g.fillCircle(X-1*k,y-94*k,1.2*k);
   g.fillStyle(0xff3a2a,1);g.fillRect(X-10*k,y-87*k,9*k,1.6*k);
 }
+function drawEnemyLite(g,m){
+  const x=m.x,y=m.y,s=m.size,fl=m.flash>0,col=fl?0xffffff:m.col;
+  g.fillStyle(0x000000,.3);g.fillEllipse(x,y,s*1.6,s*.5);
+  if(m.fly){g.fillStyle(col,.9);g.fillCircle(x,y,s*.8);g.fillStyle(0xff2a2a,1);g.fillCircle(x-s*.25,y-2,2);return;}
+  const h=Math.min(m.h*.8,s*2.4);
+  g.fillStyle(col,.9);g.fillEllipse(x,y-h*.5,s*1.3,h);
+  g.fillStyle(0x111111,1);g.fillCircle(x-s*.25,y-h*.7,Math.max(1.6,s*.1));g.fillCircle(x+s*.05,y-h*.7,Math.max(1.6,s*.1));
+}
 function drawEnemy(g,m){
+  if(LOD>=2&&!m.boss){drawEnemyLite(g,m);return;}
   const x=m.x,y=m.y,s=m.size,a=m.age,fl=m.flash>0,tn=c=>fl?0xffffff:c;
   let dx=0;if(m.atkAnim>0)dx=-Math.sin(m.atkAnim/.22*Math.PI)*8;
   const X=x+dx,bob=Math.sin(a*5+m.ph)*2;
@@ -173,6 +185,7 @@ function drawEnemy(g,m){
     break;}
   }
   // status
+  if(LOD>=2)return;
   if(T<m.slowUntil){g.lineStyle(2,0x7fe0d4,.8);g.strokeEllipse(x,y,s*1.8,s*.6);}
   if(T<m.burnUntil){const fy=m.fly?y-s-8:y-m.h-6;g.fillStyle(0xff7a1f,.9);g.fillTriangle(x-6,fy+8,x+6,fy+8,x+Math.sin(a*14)*2,fy-6);}
   if(T<m.dazeUntil&&T>=m.reverseUntil){const sy=(m.fly?y-s-14:y-m.h-8);for(let i=0;i<3;i++){const an=T*5+i*2.1;g.fillStyle(0xffe08a,1);g.fillCircle(x+Math.cos(an)*14,sy+Math.sin(an)*4,2.6);}}
@@ -276,6 +289,7 @@ function drawFx(g,f){
 const drawList=[];
 function render(){
   const g=gfx;g.clear();
+  LOD=enemies.length>90?2:(enemies.length>45?1:0);
   drawChurchFx(g);
   for(const z of zones)drawZone(g,z);
   for(const w of walls)drawWall(g,w);
@@ -298,17 +312,21 @@ function render(){
   // foreground fog + embers
   for(const f of fogs){g.fillStyle(0x6a3a38,f.a);g.fillEllipse(f.x,f.y,f.w,f.h);}
   for(const e of embers){const a=.35+.45*Math.abs(Math.sin(e.ph));g.fillStyle(0xffa040,a);g.fillCircle(e.x,e.y,e.s);}
-  // popups
+  // popups (อัปเดตข้อความ/สีเฉพาะเมื่อเปลี่ยน — Phaser Text แพงมากถ้าสั่งทุกเฟรม)
   for(let i=0;i<popPool.length;i++){
     const t=popPool[i],q=popups[i];
     if(!q){if(t.visible)t.setVisible(false);continue;}
     const pr=q.t/q.dur;
-    t.setVisible(true);t.setText(q.txt);t.setColor(q.col);t.setFontSize(q.sz);t.setPosition(q.x,q.y-pr*34);t.setAlpha(1-Math.max(0,pr-.55)/.45);
+    if(!t.visible)t.setVisible(true);
+    if(t._tx!==q.txt){t._tx=q.txt;t.setText(q.txt);}
+    if(t._co!==q.col){t._co=q.col;t.setColor(q.col);}
+    if(t._sz!==q.sz){t._sz=q.sz;t.setFontSize(q.sz);}
+    t.setPosition(q.x,q.y-pr*34);t.setAlpha(1-Math.max(0,pr-.55)/.45);
   }
 }
 function ambient(dt){
   for(const e of embers){e.x+=e.vx*dt;e.y+=e.vy*dt;e.ph+=dt*3;if(e.y<-10||e.x<-10){e.x=rnd(W*.3,W+40);e.y=H+10;}}
   for(const f of fogs){f.x+=f.v*dt;if(f.x>W+300)f.x=-300;if(f.x<-300)f.x=W+300;}
-  if(shakeAmt>.2){scene.cameras.main.setScroll(rnd(-shakeAmt,shakeAmt),rnd(-shakeAmt,shakeAmt));shakeAmt*=.9;}
+  if(shakeAmt>.2){const a=Math.min(5,shakeAmt)*SHAKE_MUL[shakeLvl];scene.cameras.main.setScroll(rnd(-a,a),rnd(-a,a));shakeAmt*=.88;}
   else if(shakeAmt!==0){shakeAmt=0;scene.cameras.main.setScroll(0,0);}
 }

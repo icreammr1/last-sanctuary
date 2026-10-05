@@ -87,6 +87,9 @@ body{height:100%;margin:0;background:var(--page-bg);color:var(--ink);font-family
 .sk .up.on{display:grid}
 @keyframes pulse{50%{transform:scale(1.18)}}
 @media (prefers-reduced-motion:reduce){.sk .up{animation:none}}
+#mv{position:absolute;right:1.6cqw;bottom:6.5cqw;display:flex;flex-direction:column;gap:.6cqw}
+.mvb{width:5cqw;height:4.4cqw;font:inherit;font-size:1.5em;color:var(--gold-2);border-radius:.8cqw;border:1px solid var(--line);background:rgba(22,10,10,.78);cursor:pointer;touch-action:none}
+.mvb:active{background:rgba(232,184,90,.25);border-color:var(--gold)}
 #hint{position:absolute;right:1.4cqw;bottom:1.6cqw;max-width:21cqw;text-align:right;font-size:.78em;opacity:.62;line-height:1.5}
 #xp{position:absolute;left:0;right:0;bottom:0;height:.45cqw;background:rgba(0,0,0,.55)}
 #xp i{display:block;height:100%;transform-origin:left;background:var(--gold);transition:transform .2s}
@@ -139,7 +142,7 @@ table.res th{color:var(--muted);font-weight:600}
     <div id="top">
       <div class="panel" id="waveBox"><div class="lbl">คลื่นที่</div><div class="wn"><b id="wN">0</b><span>/ 20</span></div><div class="sub" id="wLeft">—</div></div>
       <div class="panel" id="churchBox"><div class="row"><span>โบสถ์</span><span id="chTxt"></span></div><div class="bar big"><i id="chBar"></i></div></div>
-      <div class="ctrls ia"><button class="btn" id="bSpeed">ความเร็ว ×1</button><button class="btn" id="bPause">พัก</button></div>
+      <div class="ctrls ia"><button class="btn" id="bShake">สั่นจอ: น้อย</button><button class="btn" id="bSpeed">ความเร็ว ×1</button><button class="btn" id="bPause">พัก</button></div>
     </div>
     <div id="boss" class="panel"><div class="row"><b id="bossName"></b><span id="bossTxt"></span></div><div class="bar big"><i id="bossBar"></i></div></div>
     <div id="party"></div>
@@ -147,6 +150,7 @@ table.res th{color:var(--muted);font-weight:600}
     <div id="toast" class="panel"></div>
     <div id="me" class="panel"></div>
     <div id="skills"></div>
+    <div id="mv" class="ia"><button class="mvb" id="mvUp" aria-label="เดินขึ้น">▲</button><button class="mvb" id="mvDown" aria-label="เดินลง">▼</button></div>
     <div id="hint"></div>
     <div id="xp"><i id="xpBar"></i></div>
   </div>
@@ -160,7 +164,7 @@ table.res th{color:var(--muted);font-weight:600}
     <label class="chk"><input type="checkbox" id="botChk" checked> ให้บอทคุมตัวละครที่เราไม่ได้ควบคุม (ใช้ทดสอบเล่นหลายคน)</label>
     <div class="lobrow"><button class="cta" id="startBtn">เริ่มป้องกันโบสถ์</button><button class="cta ghost" id="onlineBtn">เล่นกับเพื่อน (ออนไลน์)</button></div>
     <ul class="how">
-      <li><b>ยิงอัตโนมัติ</b> กด 1–4 (หรือ Q W E R) ร่ายสกิลที่ตำแหน่งเมาส์</li>
+      <li><b>ยิงอัตโนมัติ</b> กด 1–4 ร่ายสกิลที่ตำแหน่งเมาส์ · <b>W/S</b> เดินขึ้นลง</li>
       <li><b>มือถือ/คลิก</b> แตะปุ่มสกิลแล้วแตะเป้าหมายในฉาก</li>
       <li><b>EXP</b> ฆ่าผี → เลเวลอัพ → กด + หรือ Shift+1–4 เพื่ออัพสกิล</li>
       <li><b>คลื่นที่ 5</b> ทุกคนเลือกสายพร้อมกัน · บอสคลื่น 10 และ 20</li>

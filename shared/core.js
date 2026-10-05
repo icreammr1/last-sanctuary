@@ -7,9 +7,9 @@ const CFG={
   countMul:{1:.45,2:.7,3:.9,4:1},      // จำนวนมอนตามจำนวนผู้เล่น
   bossHpMul:{1:.38,2:.72,3:.88,4:1},   // เลือดบอสตามจำนวนผู้เล่น
   hpGrow:.09,dmgGrow:.035,            // มอนแรงขึ้นต่อเวฟ
-  firstDelay:8,intermission:9,
+  firstDelay:6,intermission:4,
   reviveTime:4.5,reviveSupport:3,reviveHp:.4,reviveBetween:true,reviveBetweenHp:.5,
-  shareDmg:.7,                         // EXP: 70% ตามดาเมจที่ทำ / 30% หารเท่ากันทุกคนที่ยังรอด
+  shareDmg:.5,                         // EXP: 70% ตามดาเมจที่ทำ / 30% หารเท่ากันทุกคนที่ยังรอด
   maxLvl:12,maxSkill:5,hpPerLvl:.08,dmgPerLvl:.06
 };
 const rnd=(a,b)=>a+Math.random()*(b-a);
@@ -19,11 +19,11 @@ function lerpC(a,b,t){const ar=a>>16&255,ag=a>>8&255,ab=a&255,br=b>>16&255,bg=b>
 
 /* ===================== DATA ===================== */
 const CLS={
-  archer:{name:'นักธนู',icon:'🏹',col:0x8fd18a,css:'#8fd18a',hp:120,mp:100,regen:4.5,range:540,dmg:11,rate:.62,spd:950,pk:'arrow',pr:5,role:'ยิงต่อเนื่อง ดาเมจเดี่ยว'},
-  mage:{name:'นักเวทย์',icon:'🔥',col:0xff7a3c,css:'#ff7a3c',hp:90,mp:150,regen:6,range:500,dmg:16,rate:.95,spd:650,pk:'fire',pr:9,splash:45,role:'AOE ไฟ · บัพดาเมจทีม'},
-  gunner:{name:'นักแม่นปืน',icon:'🔫',col:0xe8c46a,css:'#e8c46a',hp:105,mp:110,regen:5,range:580,dmg:8,rate:.34,spd:1300,pk:'bullet',pr:4,role:'ยิงรัว ปืนใหญ่ เลเซอร์'},
-  support:{name:'ซัพพอร์ต',icon:'✨',col:0x7fe0d4,css:'#7fe0d4',hp:110,mp:160,regen:7,range:450,dmg:7,rate:.8,spd:700,pk:'orb',pr:7,role:'ฮีล · ชุบเร็ว · สโลว์'},
-  tank:{name:'แทงค์',icon:'🛡️',col:0x8aa4d6,css:'#8aa4d6',hp:230,mp:90,regen:4,range:360,dmg:8,rate:.9,spd:700,pk:'bolt',pr:8,role:'โล่ · กำแพง · ผลักถอย'}
+  archer:{name:'นักธนู',icon:'🏹',col:0x8fd18a,css:'#8fd18a',hp:120,mp:100,regen:4.5,range:540,dmg:11,rate:.62,spd:950,pk:'arrow',pr:5,role:'ยิงต่อเนื่อง ดาเมจเดี่ยว',dmul:1},
+  mage:{name:'นักเวทย์',icon:'🔥',col:0xff7a3c,css:'#ff7a3c',hp:90,mp:150,regen:6,range:500,dmg:16,rate:.95,spd:650,pk:'fire',pr:9,splash:45,role:'AOE ไฟ · บัพดาเมจทีม',dmul:1},
+  gunner:{name:'นักแม่นปืน',icon:'🔫',col:0xe8c46a,css:'#e8c46a',hp:105,mp:110,regen:5,range:580,dmg:8,rate:.34,spd:1300,pk:'bullet',pr:4,role:'ยิงรัว ปืนใหญ่ เลเซอร์',dmul:1},
+  support:{name:'ซัพพอร์ต',icon:'✨',col:0x7fe0d4,css:'#7fe0d4',hp:110,mp:160,regen:7,range:450,dmg:7,rate:.8,spd:700,pk:'orb',pr:7,role:'ฮีล · ชุบเร็ว · สโลว์',dmul:1.35},
+  tank:{name:'แทงค์',icon:'🛡️',col:0x8aa4d6,css:'#8aa4d6',hp:230,mp:90,regen:4,range:360,dmg:8,rate:.9,spd:700,pk:'bolt',pr:8,role:'โล่ · กำแพง · ผลักถอย',dmul:1.4}
 };
 const EN={
   khamot:{n:'ผีโขมด',hp:22,spd:78,dmg:4,cd:1.1,size:13,exp:3,col:0x7dff9a,h:36},
@@ -35,6 +35,8 @@ const EN={
   boss1:{n:'เปรตราชา',hp:4800,spd:21,dmg:58,cd:1.8,size:74,exp:200,col:0xe8a04a,boss:1,h:230},
   boss2:{n:'พญาผีแห่งกรุงศรี',hp:16000,spd:19,dmg:85,cd:2,size:88,exp:600,col:0x9a6bff,boss:1,h:250}
 };
+function waveBoost(w){return w<=4?1.9:(w<=10?1.6:1);}
+function waveCount(w,n){return Math.max(1,Math.round(n*CFG.countMul[nP]*waveBoost(w)));}
 function waveDef(w){
   const L=[null,
     [['khamot',8]],
@@ -58,6 +60,7 @@ let players=[],enemies=[],projs=[],zones=[],walls=[],fx=[],popups=[],sched=[],sp
 let T=0,speed=1,state='menu',wave=0,interT=0,churchHp=1,churchMax=1,ctl=0,targeting=-1;
 let nP=1,botsOn=true,botAll=false,classChosen=false,paused=false,shakeAmt=0,churchFlash=0,waveClock=0,bossRef=null,ann=null,chosen=[];
 let eid=0;
+const YMIN=455,YMAX=618,MV_SPEED=120;
 const SLOT={1:[[290,525]],2:[[300,490],[250,570]],3:[[300,470],[250,525],[300,580]],4:[[300,468],[250,512],[300,556],[250,600]]};
 const FRONT={1:[0],2:[0,1],3:[0,2,1],4:[0,2,1,3]};
 const PRI={tank:0,gunner:1,archer:2,mage:3,support:4};
@@ -65,7 +68,7 @@ const PRI={tank:0,gunner:1,archer:2,mage:3,support:4};
 const C=p=>CLS[p.cls];
 const maxHp=p=>Math.round(C(p).hp*(1+CFG.hpPerLvl*(p.lvl-1)))+(T<p.hpBuffUntil?p.hpBuff:0);
 const maxMp=p=>C(p).mp+4*(p.lvl-1);
-const dm=p=>(1+CFG.dmgPerLvl*(p.lvl-1))*(T<p.buffUntil?p.buffMul:1);
+const dm=p=>(1+CFG.dmgPerLvl*(p.lvl-1))*(T<p.buffUntil?p.buffMul:1)*(C(p).dmul||1);
 const hm=p=>1+.04*(p.lvl-1);
 const expNeed=l=>Math.round(40+30*Math.pow(l-1,1.35));
 const expMul=()=>nP/CFG.countMul[nP];
@@ -73,14 +76,15 @@ const ecy=m=>m.fly?m.y:m.y-m.size*.8;
 const aliveP=()=>players.filter(p=>p.alive);
 
 function later(s,fn){sched.push({at:T+s,fn});}
-function pop(x,y,txt,col,sz){if(popups.length>56)popups.shift();popups.push({x,y,txt:String(txt),col:col||'#fff',sz:sz||15,t:0,dur:.85});}
+function pop(x,y,txt,col,sz){if(popups.length>28)popups.shift();popups.push({x,y,txt:String(txt),col:col||'#fff',sz:sz||15,t:0,dur:.85});}
 function ring(x,y,col,r1){fx.push({k:'ring',x,y,r0:10,r1:r1||70,col,t:0,dur:.5});}
-function shake(a){shakeAmt=Math.max(shakeAmt,a);}
+let shakeEvt=0,netSpeed=1;
+function shake(a){shakeAmt=Math.max(shakeAmt,a);shakeEvt=Math.max(shakeEvt,a);}
 function toast(m){HK.toast(m);}
 function gtoast(m){HK.gtoast(m);}
 function announce(t,s,d){ann={t,s,until:T+(d||3)};}
 
-function makePlayer(i){return{i,cls:'archer',bot:false,x:-60,y:0,tx:0,ty:0,hp:0,mana:0,lvl:1,exp:0,sp:0,skillLv:[1,1,1,1],cd:[0,0,0,0],atkT:.3,alive:true,
+function makePlayer(i){return{i,cls:'archer',bot:false,mv:0,x:-60,y:0,tx:0,ty:0,hp:0,mana:0,lvl:1,exp:0,sp:0,skillLv:[1,1,1,1],cd:[0,0,0,0],atkT:.3,alive:true,
   hpBuff:0,hpBuffUntil:0,buffMul:1,buffUntil:0,rapidUntil:0,invuln:0,flash:0,kills:0,dealt:0,healed:0,deaths:0,rev:null,castAnim:0,recoil:0,botT:rnd(0,.3),slot:i};}
 
 /* ===================== COMBAT HELPERS ===================== */
@@ -99,7 +103,7 @@ function hurt(m,d,own,o){
   const real=Math.min(d,m.hp);m.hp-=d;m.flash=.1;
   const pl=players[own];
   if(pl){m.dmgBy[own]=(m.dmgBy[own]||0)+real;pl.dealt+=real;m.last=own;}
-  if(!o.quiet&&(d>=12||Math.random()<.3))pop(m.x+rnd(-8,8),ecy(m)-m.size-6,Math.round(d),d>=60?'#ffd36b':'#ffffff',d>=60?19:14);
+  if(!o.quiet&&(d>=40||Math.random()<.12))pop(m.x+rnd(-8,8),ecy(m)-m.size-6,Math.round(d),d>=60?'#ffd36b':'#ffffff',d>=60?19:14);
   if(o.slow){m.slowUntil=T+(o.slowT||2);m.slowMul=1-o.slow;}
   if(o.burn){m.burnUntil=T+(o.burnT||3);m.burnDps=o.burn;m.burnOwner=own;}
   if(o.kb)m.x=Math.min(1350,m.x+o.kb*(m.boss?.15:1));
@@ -115,7 +119,7 @@ function kill(m){
   if(m===bossRef)bossRef=null;
 }
 function giveExp(m){
-  const pool=m.exp*expMul(),al=aliveP();let tot=0;for(const k in m.dmgBy)tot+=m.dmgBy[k];
+  const pool=m.exp*expMul()/waveBoost(wave),al=aliveP();let tot=0;for(const k in m.dmgBy)tot+=m.dmgBy[k];
   for(const p of players){
     let s=0;
     if(tot>0)s+=pool*CFG.shareDmg*(m.dmgBy[p.i]||0)/tot;else if(al.length&&p.alive)s+=pool*CFG.shareDmg/al.length;
@@ -124,7 +128,9 @@ function giveExp(m){
   }
 }
 function gainExp(p,a){
-  if(p.lvl>=CFG.maxLvl)return;p.exp+=a;
+  if(p.lvl>=CFG.maxLvl)return;
+  let avg=0;for(const q of players)avg+=q.lvl;avg/=players.length||1;
+  p.exp+=a*(1+clamp((avg-p.lvl)*.15,0,.6));
   while(p.lvl<CFG.maxLvl&&p.exp>=expNeed(p.lvl)){
     p.exp-=expNeed(p.lvl);p.lvl++;p.sp++;
     if(p.alive){p.hp=Math.min(maxHp(p),p.hp+maxHp(p)*.25);p.mana=maxMp(p);}
@@ -134,12 +140,12 @@ function gainExp(p,a){
 }
 function hitPlayer(p,d){
   if(!p.alive||T<p.invuln)return;
-  p.hp-=d;p.flash=.14;pop(p.x,p.y-62,Math.round(d),'#ff6b5e',14);
+  p.hp-=d;p.flash=.14;pop(p.x,p.y-62,Math.round(d),'#ff6b5e',14);gainExp(p,d*(p.cls==='tank'?.07:.03));
   if(p.hp<=0){p.hp=0;p.alive=false;p.rev=null;p.deaths++;ring(p.x,p.y,0xaaaaaa,60);pop(p.x,p.y-70,'ล้มแล้ว!','#ff9a8a',18);
     if(!players.some(q=>q.alive))endGame(false,'ผู้เล่นล้มครบทุกคน');}
 }
 function healP(q,a,src){
-  if(!q.alive)return;const m=maxHp(q),r=Math.max(0,Math.min(a,m-q.hp));q.hp+=r;if(src)src.healed+=r;
+  if(!q.alive)return;const m=maxHp(q),r=Math.max(0,Math.min(a,m-q.hp));q.hp+=r;if(src){src.healed+=r;if(r>0)gainExp(src,r*.05);}
   if(r>.5)pop(q.x,q.y-66,'+'+Math.round(r),'#7ff0a0',14);
   fx.push({k:'heal',x:q.x,y:q.y,t:0,dur:.7});
 }
@@ -340,6 +346,7 @@ function separate(){
 
 /* ===================== PLAYER STEP ===================== */
 function stepPlayer(p,dt){
+  if(p.alive&&!p.rev&&p.mv)p.ty=clamp(p.ty+p.mv*MV_SPEED*dt,YMIN,YMAX);
   p.x+=(p.tx-p.x)*Math.min(1,dt*5);p.y+=(p.ty-p.y)*Math.min(1,dt*5);
   if(p.flash>0)p.flash-=dt;if(p.castAnim>0)p.castAnim-=dt;if(p.recoil>0)p.recoil-=dt;
   if(!p.alive)return;
@@ -381,9 +388,9 @@ function stepProjs(dt){
 function advance(){const w=wave+1;if(w===CFG.classWave&&!classChosen){openClassSelect();return;}startWave(w);}
 function startWave(w){
   wave=w;state='wave';waveClock=0;
-  const def=waveDef(w),cm=CFG.countMul[nP];spawnQ=[];
-  const dur=12+w*.8;
-  for(const e of def.list){const c=Math.max(1,Math.round(e[1]*cm));for(let i=0;i<c;i++)spawnQ.push({t:e[0],at:rnd(0,dur)});}
+  const def=waveDef(w);spawnQ=[];
+  const dur=w<=10?8+w*.6:12+w*.8;
+  for(const e of def.list){const c=waveCount(w,e[1]);for(let i=0;i<c;i++)spawnQ.push({t:e[0],at:rnd(0,dur)});}
   if(def.boss)spawnQ.push({t:def.boss,at:1.5});
   spawnQ.sort((a,b)=>a.at-b.at);
   announce('คลื่นที่ '+w,def.boss?'บอส '+EN[def.boss].n+' มาแล้ว!':'ผีกำลังมาจากทางขวา',3);
@@ -473,6 +480,7 @@ function applyCommand(idx,m){
       if(s.k==='ally'){const q=players[m.a];if(q&&q.alive)t.ally=q;}
       tryCast(p,m.i|0,t);break;}
     case 'upg':if(m.i>=0&&m.i<4)upgrade(p,m.i|0);break;
+    case 'mv':p.mv=m.d>0?1:(m.d<0?-1:0);break;
     case 'rev':startRevive(p,players[m.q]);break;
     case 'revc':p.rev=null;break;
     case 'cls':if(state==='classSelect'&&['mage','gunner','support','tank'].includes(m.c))setChoice(idx,m.c);break;
@@ -501,7 +509,7 @@ function encEnemy(m){
 }
 function buildSnaps(){
   const q=++snapSeq,out=[];
-  out.push({t:'S',T:r2(T),s:state,w:wave,it:r1(interT),l:enemies.length+spawnQ.length,ch:Math.ceil(churchHp),cm:churchMax,sh:r1(shakeAmt),cf:r2(churchFlash),
+  out.push({t:'S',T:r2(T),s:state,w:wave,it:r1(interT),l:enemies.length+spawnQ.length,ch:Math.ceil(churchHp),cm:churchMax,sh:r1(shakeEvt),sp:netSpeed,cf:r2(churchFlash),
     an:ann&&T<ann.until?{t:ann.t,s:ann.s,r:r1(ann.until-T)}:null,
     p:players.map(p=>({x:r1(p.x),y:r1(p.y),cls:p.cls,hp:r1(p.hp),mana:r1(p.mana),lvl:p.lvl,exp:r1(p.exp),sp:p.sp,sl:p.skillLv,cd:p.cd.map(r1),al:p.alive?1:0,
       hb:p.hpBuff,hbu:r1(p.hpBuffUntil),bm:r2(p.buffMul),bu:r1(p.buffUntil),ru:r1(p.rapidUntil),iv:r1(p.invuln),fl:r2(p.flash),ca:r2(p.castAnim),rc:r2(p.recoil),
@@ -519,10 +527,11 @@ function buildSnaps(){
     if(pr.length>6)pr=pr.slice(0,pr.length-6);else if(fl.length>3)fl=fl.slice(1);else if(po.length>2)po=po.slice(1);else break;
   }
   out.push(mkV());
+  shakeEvt=0;
   return out;
 }
 
 const API={startGame,step,applyCommand,playerGone,buildSnaps,
-  setBots(v,all){botsOn=v;botAll=!!all;},autoPick(list){chosen=players.map((p,i)=>list[i%list.length]);confirmClasses();},
+  setBots(v,all){botsOn=v;botAll=!!all;},setNetSpeed(v){netSpeed=v;},autoPick(list){chosen=players.map((p,i)=>list[i%list.length]);confirmClasses();},
   get state(){return state;},get wave(){return wave;},get players(){return players;},get enemies(){return enemies;},
   get churchHp(){return churchHp;},get T(){return T;},get nP(){return nP;},get CFG(){return CFG;}};

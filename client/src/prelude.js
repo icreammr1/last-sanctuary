@@ -1,9 +1,9 @@
 /* ===== ส่วนเสริมฝั่งเบราว์เซอร์ (UI) ===== */
 const $=id=>document.getElementById(id);
 const fmt=n=>Math.round(n).toLocaleString('en-US');
-let scene,gfx,canvas,popPool=[];
+let scene,gfx,canvas,popPool=[],RS=1;
 const mouse={x:760,y:520};
-const net={role:null,tp:null,started:false,conns:[],hostConn:null,peer:null,left:0,emap:new Map(),acc:0,code:'',idx:0,lobbyHost:false,lobbyN:0};
+const net={role:null,tp:null,started:false,conns:[],hostConn:null,peer:null,left:0,emap:new Map(),acc:0,code:'',idx:0,lobbyHost:false,lobbyN:0,names:[]};
 const embers=[],fogs=[];
 let toastTimer=0;
 const SHAKE_MUL=[0,.35,1],SHAKE_NAME=['ปิด','น้อย','ปกติ'];let shakeLvl=1;
@@ -12,7 +12,7 @@ function showEnd(win,reason){
   let h='<div class="sheet"><h2>'+(win?'โบสถ์ยังตั้งอยู่!':'โบสถ์สุดท้ายล่มสลาย')+'</h2>';
   h+='<p class="sub">'+(win?'ป้องกันครบ 20 คลื่น มนุษยชาติยังมีแสงสว่าง':(reason+' · ไปถึงคลื่นที่ '+wave))+'</p>';
   h+='<table class="res"><tr><th>ผู้เล่น</th><th>สาย</th><th>เลเวล</th><th>ฆ่าได้</th><th>ดาเมจ</th><th>ฮีล</th><th>ล้ม</th></tr>';
-  for(const p of players)h+='<tr><td>'+(p.i+1)+'</td><td>'+CLS[p.cls].name+'</td><td>'+p.lvl+'</td><td>'+p.kills+'</td><td>'+fmt(p.dealt)+'</td><td>'+fmt(p.healed)+'</td><td>'+p.deaths+'</td></tr>';
+  for(const p of players)h+='<tr><td>'+String(p.name).replace(/[<>&]/g,'')+'</td><td>'+CLS[p.cls].name+'</td><td>'+p.lvl+'</td><td>'+p.kills+'</td><td>'+fmt(p.dealt)+'</td><td>'+fmt(p.healed)+'</td><td>'+p.deaths+'</td></tr>';
   h+='</table><button class="cta" id="againBtn">กลับเมนู</button></div>';
   const m=$('mEnd');m.innerHTML=h;m.classList.remove('hide');
   $('againBtn').onclick=()=>{m.classList.add('hide');$('mMenu').classList.remove('hide');state='menu';if(net.role||net.tp)netLeave(true);};

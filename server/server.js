@@ -19,6 +19,10 @@ const coreSrc = fs.readFileSync(path.join(__dirname, '..', 'shared', 'core.js'),
 const makeCore = new Function('HK', coreSrc + '\n;return API;');
 
 const rooms = new Map();
+function cleanName(v, i) {
+  const n = String(v == null ? '' : v).replace(/[\u0000-\u001f<>&"']/g, '').trim().slice(0, 12);
+  return n || ('ผู้เล่น ' + (i + 1));
+}
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ';
 function newCode() {
   for (let k = 0; k < 50; k++) {
@@ -48,7 +52,8 @@ class Room {
   }
   live() { return this.clients.filter(c => !c.gone); }
   announceLobby() {
-    this.clients.forEach((c, i) => { c.idx = i; this.send(c, { t: 'joined', idx: i, n: this.clients.length, code: this.code }); });
+    const names = this.clients.map((c, i) => c.name || ('ผู้เล่น ' + (i + 1)));
+    this.clients.forEach((c, i) => { c.idx = i; this.send(c, { t: 'joined', idx: i, n: this.clients.length, code: this.code, names }); });
   }
   add(c) {
     c.room = this; c.idx = this.clients.length;
@@ -78,7 +83,7 @@ class Room {
       autoConfirm: () => true,
     };
     this.game = makeCore(HK);
-    this.game.startGame(this.clients.length, false);
+    this.game.startGame(this.clients.length, false, this.clients.map((c, i) => c.name || ('ผู้เล่น ' + (i + 1))));
     this.game.setNetSpeed(GAME_SPEED);
     this.clients.forEach((c, i) => this.send(c, { t: 'start', n: this.clients.length, idx: i }));
     this.last = Date.now();
@@ -120,6 +125,7 @@ function handle(c, m) {
       if (rooms.size >= MAX_ROOMS) { c.ws.send(JSON.stringify({ t: 'error', m: 'เซิร์ฟเวอร์เต็มชั่วคราว ลองใหม่ภายหลัง' })); return; }
       const code = newCode();
       if (!code) return;
+      c.name = cleanName(m.name, 0);
       const r = new Room(code); rooms.set(code, r); r.add(c);
       break;
     }
@@ -129,6 +135,7 @@ function handle(c, m) {
       if (!r) { c.ws.send(JSON.stringify({ t: 'error', m: 'ไม่พบห้องนี้ ตรวจรหัสอีกครั้ง' })); return; }
       if (r.started) { c.ws.send(JSON.stringify({ t: 'error', m: 'ห้องนี้เริ่มเกมไปแล้ว' })); return; }
       if (r.clients.length >= 4) { c.ws.send(JSON.stringify({ t: 'error', m: 'ห้องเต็มแล้ว (สูงสุด 4 คน)' })); return; }
+      c.name = cleanName(m.name, r.clients.length);
       r.add(c);
       break;
     }

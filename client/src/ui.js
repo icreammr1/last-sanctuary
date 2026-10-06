@@ -1,7 +1,7 @@
 
 /* ===================== HUD / UI ===================== */
 let skillKey='',hudShown=false,partyEls=[],skEls=[];
-const PLAYER_LABEL=i=>'ผู้เล่น '+(i+1);
+const PLAYER_LABEL=i=>(players[i]&&players[i].name)||('ผู้เล่น '+(i+1));
 function sT(el,v){if(el._t!==v){el._t=v;el.textContent=v;}}
 function sF(el,v){v=Math.round(clamp(v,0,1)*1000)/1000;if(el._f!==v){el._f=v;el.style.transform='scaleX('+v+')';}}
 function sD(el,v){if(el._d!==v){el._d=v;el.style.display=v;}}
@@ -10,10 +10,10 @@ function buildParty(){
   const box=$('party');box.innerHTML='';partyEls=[];
   players.forEach((p,i)=>{
     const d=document.createElement('div');d.className='card panel ia';
-    d.innerHTML='<div class="nm"><span class="n"></span><small class="lv"></small></div><div class="bar"><i class="hp"></i></div><div class="bar mp"><i class="mpb"></i></div><div class="bar xp"><i class="xpb"></i></div><div class="st"></div>';
+    d.innerHTML='<div class="nm"><span class="n"></span><small class="lv"></small></div><div class="bar"><i class="hp"></i></div><div class="st"></div>';
     d.onclick=()=>{if(net.role)return;ctl=i;targeting=-1;};
     box.appendChild(d);
-    partyEls.push({d,n:d.querySelector('.n'),lv:d.querySelector('.lv'),hp:d.querySelector('.hp'),mp:d.querySelector('.mpb'),xp:d.querySelector('.xpb'),st:d.querySelector('.st')});
+    partyEls.push({d,n:d.querySelector('.n'),lv:d.querySelector('.lv'),hp:d.querySelector('.hp'),st:d.querySelector('.st')});
   });
 }
 function buildSkillBar(){
@@ -29,6 +29,26 @@ function buildSkillBar(){
     skEls.push({b,pips:b.querySelector('.pips'),cdo:b.querySelector('.cdo'),cdt:b.querySelector('.cdt'),up});
   });
   skillKey=ctl+p.cls;
+}
+function sOrb(el,f,html){
+  f=Math.round(clamp(f,0,1)*100)/100;
+  if(el._f!==f){el._f=f;el.querySelector('.fill').style.transform='scaleY('+f+')';}
+  const v=el.querySelector('.val');if(v._h!==html){v._h=html;v.innerHTML=html;}
+}
+let shopOpen=false,shopSig='';
+function toggleShop(){shopOpen=!shopOpen;$('shop').style.display=shopOpen?'block':'none';shopSig='';}
+function renderShop(p){
+  if(!shopOpen)return;
+  const sig=Math.floor(p.gold)+'|'+p.pots.hp+p.pots.mp+'|'+p.buffs.hp+p.buffs.mp+p.buffs.dmg+p.buffs.regen;
+  if(sig===shopSig)return;shopSig=sig;
+  let h='<div class="hd"><b>ร้านค้า (B ปิด)</b><span>🪙 '+Math.floor(p.gold)+'</span></div>';
+  for(const id of SHOP_IDS){
+    const s=SHOP[id],c=shopCost(p,id),pot=id==='hpPot'||id==='mpPot';
+    const cur=pot?p.pots[id==='hpPot'?'hp':'mp']:p.buffs[id],mx=pot?s.cap:s.max,maxed=cur>=mx;
+    h+='<div class="srow"><span class="si">'+s.ic+'</span><span class="st2">'+s.n+' <small>'+s.d+' · '+cur+'/'+mx+'</small></span><button data-id="'+id+'"'+(maxed||p.gold<c?' disabled':'')+'>'+(maxed?'เต็ม':'🪙 '+c)+'</button></div>';
+  }
+  const el=$('shop');el.innerHTML=h;
+  el.querySelectorAll('button[data-id]').forEach(b=>{b.onclick=()=>buyCmd(b.dataset.id);});
 }
 function onSkillClick(i){
   const p=players[ctl];if(!p||paused||state==='over'||state==='classSelect'||state==='menu')return;
@@ -64,13 +84,11 @@ function updateHud(){
   // party
   players.forEach((q,i)=>{
     const e=partyEls[i];if(!e)return;
-    sT(e.n,PLAYER_LABEL(i)+' · '+CLS[q.cls].name);sT(e.lv,'Lv '+q.lvl+(q.sp>0?' ★'+q.sp:''));
-    sF(e.hp,q.hp/maxHp(q));sF(e.mp,q.mana/maxMp(q));sF(e.xp,q.lvl>=CFG.maxLvl?1:q.exp/expNeed(q.lvl));
+    sT(e.n,CLS[q.cls].icon+' '+PLAYER_LABEL(i));sT(e.lv,'Lv'+q.lvl);
+    sF(e.hp,q.hp/maxHp(q));
     e.d.classList.toggle('ctl',i===ctl);e.d.classList.toggle('dead',!q.alive);
     let st='';if(!q.alive){st=players.some(o=>o.rev&&o.rev.target===q)?'กำลังถูกชุบ…':'ล้ม — กด F ชุบ';}
-    else if(q.rev)st='กำลังชุบ '+PLAYER_LABEL(q.rev.target.i)+'…';
-    else if(T<q.hpBuffUntil&&q.hpBuff)st='เลือดเสริม';
-    else if(T<q.buffUntil)st='ดาเมจเพิ่ม';
+    else if(q.rev)st='ชุบ '+PLAYER_LABEL(q.rev.target.i)+'…';
     sT(e.st,st);
   });
   // skills
@@ -85,10 +103,19 @@ function updateHud(){
     sT(e.pips,'●'.repeat(p.skillLv[i])+'○'.repeat(CFG.maxSkill-p.skillLv[i]));
     e.up.classList.toggle('on',p.sp>0&&p.skillLv[i]<CFG.maxSkill);
   }
-  // me + xp
-  sT($('me'),PLAYER_LABEL(ctl)+' · '+CLS[p.cls].name+' · Lv '+p.lvl+(p.sp>0?' · แต้มสกิล '+p.sp:'')+' · มานา '+Math.floor(p.mana)+'/'+maxMp(p));
+  // orbs / pots / shop / me
+  const mh=maxHp(p),mm=maxMp(p);
+  sOrb($('orbHp'),p.hp/mh,Math.ceil(p.hp)+'<br><small>/'+mh+'</small>');
+  sOrb($('orbMp'),p.mana/mm,Math.floor(p.mana)+'<br><small>/'+mm+'</small>');
+  for(const [id,k] of [['potHp','hp'],['potMp','mp']]){
+    const b=$(id),n=p.pots[k],cd=Math.max(0,p.potCd[k]-T);
+    sT(b.querySelector('.cnt'),String(n));b.classList.toggle('empty',n<=0);
+    const tr='scaleY('+Math.round(Math.min(1,cd/CFG.potCd)*100)/100+')',o=b.querySelector('.cdo');if(o._t!==tr){o._t=tr;o.style.transform=tr;}
+  }
+  sT($('me'),PLAYER_LABEL(ctl)+' · '+CLS[p.cls].name+' · Lv '+p.lvl+(p.sp>0?' · แต้มสกิล '+p.sp:'')+' · 🪙 '+Math.floor(p.gold));
   sF($('xpBar'),p.lvl>=CFG.maxLvl?1:p.exp/expNeed(p.lvl));
-  sT($('hint'),net.role?'1–4 สกิล · W/S เดินขึ้นลง · Shift+1–4 อัพ · F ชุบเพื่อน':nP>1?'1–4 สกิล · W/S เดินขึ้นลง · Shift+1–4 อัพ · F ชุบ · TAB สลับตัวละคร · Space เริ่มคลื่น · P พัก':'1–4 สกิล · W/S เดินขึ้นลง · Shift+1–4 อัพ · F ชุบ · Space เริ่มคลื่น · P พัก');
+  renderShop(p);
+  sT($('hint'),net.role?'1–4 สกิล · W/S เดิน · Q/E ขวดยา · B ร้านค้า · Shift+1–4 อัพ · F ชุบ':(nP>1?'1–4 สกิล · W/S เดิน · Q/E ยา · B ร้านค้า · Shift+1–4 อัพ · F ชุบ · TAB สลับตัว · Space เริ่มคลื่น · P พัก':'1–4 สกิล · W/S เดิน · Q/E ยา · B ร้านค้า · Shift+1–4 อัพ · F ชุบ · Space เริ่มคลื่น · P พัก'));
   // banner
   const b=$('banner');let html='';
   if(state==='intermission'){
@@ -188,7 +215,7 @@ function bindInput(){
   window.addEventListener('keydown',e=>{
     if(state==='menu'||state==='over')return;
     const c=e.code;
-    if(net.role&&(c==='KeyP'||c==='KeyN'||c==='KeyB'||c==='Tab'||(c==='Escape'&&targeting<0)))return;
+    if(net.role&&(c==='KeyP'||c==='KeyN'||c==='Tab'||(c==='Escape'&&targeting<0)))return;
     if(c==='KeyP'||(c==='Escape'&&targeting<0)){e.preventDefault();togglePause();return;}
     if(c==='Escape'){targeting=-1;return;}
     if(paused||state==='classSelect')return;
@@ -198,14 +225,18 @@ function bindInput(){
     if(c==='KeyF'){e.preventDefault();reviveCmd(null);return;}
     if(c==='Space'){e.preventDefault();if(state==='intermission'&&net.role!=='guest')interT=0;return;}
     if(c==='KeyN'){skipWave();return;}
-    if(c==='KeyB'){botsOn=!botsOn;toast('บอทช่วยคุม: '+(botsOn?'เปิด':'ปิด'));return;}
+    if(c==='KeyB'){toggleShop();return;}
+    if(c==='KeyQ'){potCmd('hp');return;}
+    if(c==='KeyE'){potCmd('mp');return;}
   });
   window.addEventListener('blur',()=>{if(!net.role&&!paused&&(state==='wave'||state==='intermission'))togglePause();});
+  $('potHp').onclick=()=>potCmd('hp');$('potMp').onclick=()=>potCmd('mp');$('shopBtn').onclick=toggleShop;
   $('bPause').onclick=togglePause;$('resumeBtn').onclick=togglePause;
   $('bSpeed').onclick=()=>{speed=speed%3+1;$('bSpeed').textContent='ความเร็ว ×'+speed;};
   let menuN=1;const chips=$('chips');
   for(let n=1;n<=4;n++){const b=document.createElement('button');b.className='chip'+(n===1?' on':'');b.innerHTML='<b>'+n+'</b>คน';b.onclick=()=>{menuN=n;chips.querySelectorAll('.chip').forEach(x=>x.classList.toggle('on',x===b));};chips.appendChild(b);}
-  $('startBtn').onclick=()=>startGame(menuN,$('botChk').checked);
+  const ni=$('nameIn');try{ni.value=localStorage.getItem('ls_name')||'';}catch(e){}
+  $('startBtn').onclick=()=>{saveName();startGame(menuN,$('botChk').checked,[getName()]);};
   $('onlineBtn').onclick=()=>{$('mMenu').classList.add('hide');$('mLobby').classList.remove('hide');lobbyRender();};
 }
 
@@ -216,12 +247,13 @@ function create(){
   this.add.image(0,0,'bg').setOrigin(0,0).setDepth(0);
   gfx=this.add.graphics().setDepth(2);
   for(let i=0;i<60;i++){
-    const t=this.add.text(0,0,'',{fontFamily:'Arial, sans-serif',fontSize:'16px',fontStyle:'bold',color:'#ffffff',stroke:'#000000',strokeThickness:3}).setDepth(5).setOrigin(.5,1).setVisible(false);
+    const t=this.add.text(0,0,'',{fontFamily:'Arial, sans-serif',fontSize:'16px',fontStyle:'bold',color:'#ffffff',stroke:'#000000',strokeThickness:3}).setDepth(5).setOrigin(.5,1).setVisible(false).setResolution(RS);
     popPool.push(t);
   }
   for(let i=0;i<70;i++)embers.push({x:rnd(0,W),y:rnd(0,H),vx:rnd(-22,-6),vy:rnd(-46,-12),s:rnd(1,2.6),ph:rnd(0,6.28)});
   for(let i=0;i<6;i++)fogs.push({x:rnd(0,W),y:rnd(540,660),w:rnd(500,900),h:rnd(50,90),a:.05,v:rnd(-14,14)});
   canvas=this.game.canvas;
+  this.cameras.main.setZoom(RS);this.cameras.main.centerOn(W/2,H/2);
   bindInput();
 }
 function update(time,delta){
@@ -238,7 +270,8 @@ function update(time,delta){
 }
 function boot(){
   const sc=window.Phaser;
-  new sc.Game({type:sc.AUTO,parent:'game',width:W,height:H,backgroundColor:'#000000',
+  RS=($('stage').clientWidth*(window.devicePixelRatio||1)>1500)?1.5:1;
+  new sc.Game({type:sc.AUTO,parent:'game',width:W*RS,height:H*RS,backgroundColor:'#000000',
     scale:{mode:sc.Scale.FIT,autoCenter:sc.Scale.CENTER_BOTH},render:{antialias:true},
     scene:{create,update}});
 }
@@ -265,6 +298,8 @@ function castCmd(i,t){
   }
   return tryCast(p,i,t);
 }
+function buyCmd(id){if(net.role==='guest'){netToHost({t:'buy',id});}else buyItem(players[ctl],id);}
+function potCmd(k){if(net.role==='guest'){netToHost({t:'pot',k});}else usePot(players[ctl],k);}
 function upgCmd(i){
   if(net.role==='guest'){const p=players[ctl];if(p&&p.sp>0&&p.skillLv[i]<CFG.maxSkill){netToHost({t:'upg',i});p.sp--;p.skillLv[i]++;}}
   else upgrade(players[ctl],i);
@@ -285,7 +320,7 @@ function lobbyRender(){
       +'<div class="lobrow"><button class="cta" id="lobCreate">สร้างห้อง</button></div>'
       +'<div class="lobrow"><input id="lobCode" class="codein" maxlength="4" placeholder="รหัส" autocomplete="off"><button class="cta ghost" id="lobJoin">เข้าห้อง</button></div>';
   }else if(net.tp==='ws'){
-    h+='<p class="sub">'+(net.lobbyHost?'ส่งรหัสนี้ให้เพื่อน':'เชื่อมต่อแล้ว รอผู้สร้างห้องกดเริ่มเกม')+'</p><div class="code">'+net.code+'</div><p>ผู้เล่นในห้อง <b>'+net.lobbyN+' / 4</b> (คุณคือผู้เล่น '+(net.idx+1)+')</p>'+(net.lobbyHost?'<button class="cta" id="lobStart">เริ่มเกม ('+net.lobbyN+' คน)</button>':'');
+    h+='<p class="sub">'+(net.lobbyHost?'ส่งรหัสนี้ให้เพื่อน':'เชื่อมต่อแล้ว รอผู้สร้างห้องกดเริ่มเกม')+'</p><div class="code">'+net.code+'</div><p>ผู้เล่นในห้อง <b>'+net.lobbyN+' / 4</b></p><p class="sub">'+(net.names||[]).map((n,i)=>(i===net.idx?'⭐ ':'')+String(n).replace(/[<>&]/g,'')).join(' · ')+'</p>'+(net.lobbyHost?'<button class="cta" id="lobStart">เริ่มเกม ('+net.lobbyN+' คน)</button>':'');
   }else if(net.role==='host'){
     const n=1+net.conns.filter(c=>c&&c.open).length;
     h+='<p class="sub">ส่งรหัสนี้ให้เพื่อน</p><div class="code">'+net.code+'</div><p>ผู้เล่นในห้อง <b>'+n+' / 4</b> (คุณคือผู้เล่น 1)</p><button class="cta" id="lobStart">เริ่มเกม ('+n+' คน)</button>';
@@ -377,7 +412,7 @@ function hostStart(){
   if(net.peerIdx)net.peerIdx=new Map(live.map(c=>[c.peer,c._idx]));
   const n=1+live.length;net.started=true;
   $('mLobby').classList.add('hide');
-  startGame(n,false);botsOn=false;botAll=false;speed=1;setOnlineUi(true);
+  saveName();startGame(n,false,[getName()]);botsOn=false;botAll=false;speed=1;setOnlineUi(true);
   live.forEach(c=>c.send({t:'start',n,idx:c._idx}));
 }
 function onGuestGone(conn){
@@ -412,13 +447,15 @@ function wsConnect(first){
   ws.onclose=()=>{clearTimeout(to);if(net.ws!==ws)return;net.ws=null;if(net.role==='guest')onHostGone();else lobStatus('การเชื่อมต่อถูกปิด');};
   ws.onerror=()=>{};
 }
-function hostViaWs(){wsConnect(()=>netToHost({t:'create'}));}
-function joinViaWs(code){wsConnect(()=>netToHost({t:'join',code}));}
+function getName(){const v=($('nameIn').value||'').replace(/[\u0000-\u001f<>]/g,'').trim().slice(0,12);return v||'';}
+function saveName(){try{localStorage.setItem('ls_name',getName());}catch(e){}}
+function hostViaWs(){saveName();wsConnect(()=>netToHost({t:'create',name:getName()}));}
+function joinViaWs(code){saveName();wsConnect(()=>netToHost({t:'join',code,name:getName()}));}
 function onServerMsg(m){
   if(!m||typeof m!=='object')return;
   switch(m.t){
-    case 'joined':net.role='guest';net.idx=m.idx;net.code=m.code;net.lobbyN=m.n;net.lobbyHost=m.idx===0;lobMsg='';if(!net.started)lobbyRender();break;
-    case 'lobby':net.lobbyN=m.n;if(!net.started&&net.role)lobbyRender();break;
+    case 'joined':net.role='guest';net.idx=m.idx;net.code=m.code;net.lobbyN=m.n;net.names=m.names||[];net.lobbyHost=m.idx===0;lobMsg='';if(!net.started)lobbyRender();break;
+    case 'lobby':net.lobbyN=m.n;net.names=m.names||net.names;if(!net.started&&net.role)lobbyRender();break;
     case 'error':lobMsg=String(m.m||'เกิดข้อผิดพลาด');netLeave(false);lobbyRender();break;
     default:onHostMsg(m);
   }
@@ -484,6 +521,7 @@ function applyS(s){
   if(players.length!==s.p.length){players=s.p.map((_,i)=>makePlayer(i));buildParty();skillKey='';}
   s.p.forEach((a,i)=>{
     const p=players[i];
+    p.name=a.n||p.name;p.gold=a.g||0;p.pots={hp:a.pt[0],mp:a.pt[1]};p.buffs={hp:a.bf[0],mp:a.bf[1],dmg:a.bf[2],regen:a.bf[3]};p.potCd={hp:a.pc[0]+s.T,mp:a.pc[1]+s.T};
     p.cls=a.cls;p.hp=a.hp;p.mana=a.mana;p.lvl=a.lvl;p.exp=a.exp;p.sp=a.sp;p.skillLv=a.sl;p.cd=a.cd;p.alive=!!a.al;
     p.hpBuff=a.hb;p.hpBuffUntil=a.hbu;p.buffMul=a.bm;p.buffUntil=a.bu;p.rapidUntil=a.ru;p.invuln=a.iv;p.flash=a.fl;p.castAnim=a.ca;p.recoil=a.rc;
     p.kills=a.k;p.dealt=a.d;p.healed=a.h;p.deaths=a.dt;p.slot=a.sl2;p.sx=a.x;p.sy=a.y;
@@ -528,6 +566,7 @@ function applyE(m){
 function applyV(v){
   if(state==='over')return;
   projs=v.b.map(a=>({x:a[0],y:a[1],vx:a[2],vy:a[3],kind:a[4],col:a[5],r:a[6],dead:false}));
+  ebolts=(v.eb||[]).map(a=>({x:a[0],y:a[1],vx:a[2],vy:a[3],col:a[4],dead:false}));
   fx=v.f;popups=v.po.map(a=>({x:a[0],y:a[1],txt:a[2],col:a[3],sz:a[4],t:a[5],dur:.85}));
 }
 function guestStep(dt){
@@ -537,6 +576,7 @@ function guestStep(dt){
   for(const p of players){if(p.sx!==undefined){p.x+=(p.sx-p.x)*k;p.y+=(p.sy-p.y)*k;}}
   for(const m of enemies){m.x+=(m.tx-m.x)*k;m.y+=(m.ty-m.y)*k;m.age+=g;if(m.flash>0)m.flash-=dt;if(m.atkAnim>0)m.atkAnim-=dt;}
   for(const b of projs){b.x+=b.vx*g;b.y+=b.vy*g;}
+  for(const b of ebolts){b.x+=b.vx*g;b.y+=b.vy*g;}
   for(const f of fx)f.t+=g;fx=fx.filter(f=>f.t<f.dur);
   for(const q of popups)q.t+=dt;popups=popups.filter(q=>q.t<q.dur);
   if(churchFlash>0)churchFlash-=dt;

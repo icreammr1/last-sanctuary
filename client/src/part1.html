@@ -54,8 +54,9 @@ body{height:100%;margin:0;background:var(--page-bg);color:var(--ink);font-family
 #boss{position:absolute;top:6.4cqw;left:50%;transform:translateX(-50%);width:34cqw;padding:.45cqw .8cqw;display:none}
 #boss .row{margin-bottom:.3cqw}
 #bossBar{background:linear-gradient(90deg,#b0189a,#ff3a5a)}
-#party{position:absolute;left:1.4cqw;top:7.2cqw;width:15.5cqw;display:flex;flex-direction:column;gap:.45cqw}
-.card{padding:.4cqw .6cqw .5cqw;cursor:pointer;transition:border-color .15s}
+#party{position:absolute;left:1.2cqw;top:6.6cqw;width:11.5cqw;display:flex;flex-direction:column;gap:.3cqw}
+.card{padding:.25cqw .45cqw .3cqw;cursor:pointer;transition:border-color .15s;font-size:.9em;background:linear-gradient(180deg,rgba(30,14,13,.6),rgba(12,6,7,.6))}
+.card .bar{height:.38cqw;margin-top:.15cqw}
 .card.ctl{border-color:var(--gold);box-shadow:0 0 1.1cqw rgba(232,184,90,.35)}
 .card.dead{opacity:.6;filter:grayscale(.9)}
 .card .nm{display:flex;justify-content:space-between;font-weight:700;margin-bottom:.25cqw;gap:.4cqw}
@@ -68,10 +69,10 @@ body{height:100%;margin:0;background:var(--page-bg);color:var(--ink);font-family
 #banner .btn{margin-top:.7cqw;pointer-events:auto}
 #toast{position:absolute;top:20cqw;left:50%;transform:translateX(-50%);padding:.5cqw 1.3cqw;opacity:0;transition:opacity .25s;pointer-events:none;font-weight:600;white-space:nowrap}
 #toast.on{opacity:1}
-#me{position:absolute;left:1.4cqw;bottom:1.8cqw;padding:.45cqw .8cqw;font-weight:600}
+#me{position:absolute;left:1.6cqw;bottom:11.4cqw;padding:.3cqw .7cqw;font-weight:600;font-size:.92em}
 #me small{color:var(--muted);font-weight:500}
 #me .sp{color:var(--gold-2)}
-#skills{position:absolute;bottom:1.6cqw;left:50%;transform:translateX(-50%);display:flex;gap:.9cqw}
+#skills{position:absolute;bottom:2.4cqw;left:50%;transform:translateX(-50%);display:flex;gap:.9cqw}
 .sk{position:relative;width:6.6cqw;height:6.6cqw;border-radius:.9cqw;border:1px solid var(--line);background:linear-gradient(180deg,rgba(58,28,20,.94),rgba(18,8,8,.96));color:var(--ink);font:inherit;cursor:pointer;overflow:hidden;padding:0}
 .sk:hover{border-color:var(--gold)}
 .sk.sel{border-color:var(--gold-2);box-shadow:0 0 1.2cqw rgba(255,224,140,.65)}
@@ -87,10 +88,32 @@ body{height:100%;margin:0;background:var(--page-bg);color:var(--ink);font-family
 .sk .up.on{display:grid}
 @keyframes pulse{50%{transform:scale(1.18)}}
 @media (prefers-reduced-motion:reduce){.sk .up{animation:none}}
-#mv{position:absolute;right:1.6cqw;bottom:6.5cqw;display:flex;flex-direction:column;gap:.6cqw}
+#mv{position:absolute;right:1.6cqw;bottom:12cqw;display:flex;flex-direction:column;gap:.6cqw}
 .mvb{width:5cqw;height:4.4cqw;font:inherit;font-size:1.5em;color:var(--gold-2);border-radius:.8cqw;border:1px solid var(--line);background:rgba(22,10,10,.78);cursor:pointer;touch-action:none}
 .mvb:active{background:rgba(232,184,90,.25);border-color:var(--gold)}
-#hint{position:absolute;right:1.4cqw;bottom:1.6cqw;max-width:21cqw;text-align:right;font-size:.78em;opacity:.62;line-height:1.5}
+#hint{position:absolute;left:50%;transform:translateX(-50%);bottom:.7cqw;max-width:60cqw;text-align:center;font-size:.74em;opacity:.6;line-height:1.3;white-space:nowrap}
+.orb{position:absolute;bottom:1.5cqw;width:9.4cqw;height:9.4cqw;border-radius:50%;border:2px solid #6a4a2a;background:radial-gradient(circle at 50% 35%,#2a1210,#0a0405);box-shadow:0 0 1.4cqw rgba(0,0,0,.8),inset 0 0 1.2cqw rgba(0,0,0,.9);overflow:hidden}
+.orb .fill{position:absolute;left:0;right:0;bottom:0;height:100%;transform-origin:bottom;transition:transform .15s linear}
+#orbHp{left:1.6cqw}#orbHp .fill{background:linear-gradient(180deg,#ff7a6a,#c4190f 55%,#6a0a07)}
+#orbMp{right:1.6cqw}#orbMp .fill{background:linear-gradient(180deg,#8cc4ff,#2d62d6 55%,#12296e)}
+.orb .shine{position:absolute;top:6%;left:18%;width:44%;height:26%;border-radius:50%;background:linear-gradient(180deg,rgba(255,255,255,.35),transparent);pointer-events:none}
+.orb .val{position:absolute;inset:0;display:grid;place-items:center;font-weight:800;font-size:.95em;text-shadow:0 0 .5cqw #000;pointer-events:none;text-align:center;line-height:1.1}
+#pots{position:absolute;left:12.2cqw;bottom:1.9cqw;display:flex;gap:.5cqw;align-items:flex-end}
+.pot{position:relative;width:4cqw;height:4cqw;border-radius:.6cqw;border:1px solid var(--line);background:linear-gradient(180deg,rgba(58,28,20,.94),rgba(18,8,8,.96));color:var(--ink);font:inherit;cursor:pointer;overflow:hidden;padding:0}
+.pot:hover{border-color:var(--gold)}
+.pot .ic{position:absolute;inset:0;display:grid;place-items:center;font-size:1.7em}
+.pot .key{position:absolute;top:.1cqw;left:.3cqw;font-size:.72em;font-weight:800;color:var(--gold-2)}
+.pot .cnt{position:absolute;bottom:.05cqw;right:.3cqw;font-size:.8em;font-weight:800}
+.pot .cdo{position:absolute;inset:0;background:rgba(0,0,0,.7);transform-origin:top;transform:scaleY(0);pointer-events:none}
+.pot.empty{opacity:.45}
+#shop{position:absolute;right:1.6cqw;top:8.4cqw;width:26cqw;padding:.7cqw .8cqw;display:none;pointer-events:auto;max-height:60cqh}
+#shop .hd{display:flex;justify-content:space-between;align-items:center;font-weight:700;margin-bottom:.4cqw}
+#shop .hd span{color:var(--gold-2)}
+.srow{display:flex;align-items:center;gap:.5cqw;padding:.3cqw 0;border-top:1px solid rgba(232,184,90,.15)}
+.srow .si{font-size:1.5em;width:2cqw;text-align:center}
+.srow .st2{flex:1;line-height:1.15}.srow .st2 small{display:block;color:var(--muted);font-size:.8em}
+.srow button{font:inherit;font-weight:700;font-size:.9em;color:#2a1308;background:linear-gradient(180deg,#ffe3a3,#e8b85a);border:0;border-radius:.4cqw;padding:.25cqw .6cqw;cursor:pointer;min-width:5.5cqw}
+.srow button:disabled{filter:grayscale(1) brightness(.55);cursor:not-allowed}
 #xp{position:absolute;left:0;right:0;bottom:0;height:.45cqw;background:rgba(0,0,0,.55)}
 #xp i{display:block;height:100%;transform-origin:left;background:var(--gold);transition:transform .2s}
 .modal{position:absolute;inset:0;display:grid;place-items:center;z-index:20;pointer-events:auto;overflow:auto;background:radial-gradient(ellipse at 50% 40%,rgba(34,12,8,.5),rgba(3,1,1,.9))}
@@ -149,6 +172,14 @@ table.res th{color:var(--muted);font-weight:600}
     <div id="banner"></div>
     <div id="toast" class="panel"></div>
     <div id="me" class="panel"></div>
+    <div id="orbHp" class="orb"><div class="fill"></div><div class="shine"></div><div class="val"></div></div>
+    <div id="orbMp" class="orb"><div class="fill"></div><div class="shine"></div><div class="val"></div></div>
+    <div id="pots" class="ia">
+      <button class="pot" id="potHp" title="ขวดเลือด (Q)"><span class="ic">🧪</span><span class="key">Q</span><span class="cnt"></span><u class="cdo"></u></button>
+      <button class="pot" id="potMp" title="ขวดมานา (E)"><span class="ic">💧</span><span class="key">E</span><span class="cnt"></span><u class="cdo"></u></button>
+      <button class="pot" id="shopBtn" title="ร้านค้า (B)"><span class="ic">🛒</span><span class="key">B</span></button>
+    </div>
+    <div id="shop" class="panel"></div>
     <div id="skills"></div>
     <div id="mv" class="ia"><button class="mvb" id="mvUp" aria-label="เดินขึ้น">▲</button><button class="mvb" id="mvDown" aria-label="เดินลง">▼</button></div>
     <div id="hint"></div>
@@ -160,6 +191,7 @@ table.res th{color:var(--muted);font-weight:600}
     <h1 class="ttl">โบสถ์สุดท้าย</h1>
     <div class="tag">กรุงศรีอยุธยาล่มสลายด้วยผีร้าย เหลือโบสถ์หลังเดียวที่ยังไม่แตก</div>
     <div class="lbl2">จำนวนผู้เล่น <small>โหมดทดสอบเครื่องเดียว สลับตัวละครด้วย TAB</small></div>
+    <input id="nameIn" class="codein" maxlength="12" placeholder="ชื่อของคุณ" autocomplete="off" style="width:22cqw;letter-spacing:0;text-transform:none;margin-bottom:1cqw">
     <div class="chips" id="chips"></div>
     <label class="chk"><input type="checkbox" id="botChk" checked> ให้บอทคุมตัวละครที่เราไม่ได้ควบคุม (ใช้ทดสอบเล่นหลายคน)</label>
     <div class="lobrow"><button class="cta" id="startBtn">เริ่มป้องกันโบสถ์</button><button class="cta ghost" id="onlineBtn">เล่นกับเพื่อน (ออนไลน์)</button></div>
@@ -168,6 +200,7 @@ table.res th{color:var(--muted);font-weight:600}
       <li><b>มือถือ/คลิก</b> แตะปุ่มสกิลแล้วแตะเป้าหมายในฉาก</li>
       <li><b>EXP</b> ฆ่าผี → เลเวลอัพ → กด + หรือ Shift+1–4 เพื่ออัพสกิล</li>
       <li><b>คลื่นที่ 5</b> ทุกคนเลือกสายพร้อมกัน · บอสคลื่น 10 และ 20</li>
+      <li><b>ร้านค้า</b> เก็บเงินจากผี กด <b>B</b> ซื้อบัพ/ขวดยา · <b>Q</b>/<b>E</b> ดื่มยา</li>
       <li><b>ล้ม?</b> กด F ชุบเพื่อน (ใช้เวลา) หรือแตะหลุมศพ</li>
       <li><b>แพ้</b> เมื่อโบสถ์พังหรือผู้เล่นล้มครบ</li>
     </ul>

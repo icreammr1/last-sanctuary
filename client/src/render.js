@@ -166,6 +166,30 @@ function drawEnemy(g,m){
     g.fillStyle(0x8a6a4a,1);g.fillTriangle(X-22,y-s*1.95,X-14,y-s*2.0,X-24,y-s*2.4);g.fillTriangle(X+4,y-s*1.95,X-2,y-s*2.0,X+8,y-s*2.4);
     glow(g,X-14,y-s*1.82,10,0xff2a3a,.5);g.fillStyle(0xff2a3a,1);g.fillCircle(X-14,y-s*1.82,3);g.fillCircle(X-4,y-s*1.82,3);
     g.fillStyle(0xffffff,1);g.fillTriangle(X-14,y-s*1.6,X-11,y-s*1.6,X-12.5,y-s*1.6+9);g.fillTriangle(X-6,y-s*1.6,X-3,y-s*1.6,X-4.5,y-s*1.6+9);break;}
+  case 'phrai':{shadow(g,x,y,30);const cy=y-30+bob*2;
+    glow(g,X,cy,34,0x6fe3ff,.5);
+    g.fillStyle(tn(0x8ff0ff),.85);g.fillTriangle(X-12,y-3,X+12,y-3,X,cy-6);
+    g.fillStyle(tn(0xd8fbff),1);g.fillCircle(X,cy-10,9);
+    g.fillStyle(0x0a3a4a,1);g.fillCircle(X-3,cy-11,2.2);g.fillCircle(X+3,cy-11,2.2);
+    g.lineStyle(2.5,0xcfe9ff,1);g.beginPath();g.arc(X-14,cy,12,-1.2,1.2,false);g.strokePath();
+    g.lineStyle(1,0xffffff,.8);g.lineBetween(X-14+Math.cos(-1.2)*12,cy+Math.sin(-1.2)*12,X-14+Math.cos(1.2)*12,cy+Math.sin(1.2)*12);
+    if(m.atkAnim>0)glow(g,X-22,cy,12,0x6fe3ff,.9);break;}
+  case 'phantom':{shadow(g,x,y,34);const cy=y-34+bob*2;
+    glow(g,X,cy,38,0xc7b8ff,.3);
+    g.fillStyle(tn(0x9d90d8),.78);g.fillTriangle(X-15,y-2,X+15,y-2,X,cy-14);
+    for(let i=0;i<4;i++)g.fillCircle(X-11+i*7.5,y-3+Math.sin(a*7+i)*2.5,4.5);
+    g.fillStyle(tn(0xf1ecff),.95);g.fillCircle(X-1,cy-14,10);
+    g.fillStyle(0x1a1030,1);g.fillEllipse(X-4,cy-14,5,7);g.fillEllipse(X+3,cy-14,5,7);g.fillRect(X-4,cy-8,8,2);
+    g.lineStyle(3,tn(0xcdbfff),.9);g.beginPath();g.moveTo(X-8,cy-4);g.lineTo(X-30,cy+6+Math.sin(a*8)*5);g.moveTo(X-8,cy+2);g.lineTo(X-28,cy+18+Math.sin(a*8+1)*5);g.strokePath();break;}
+  case 'yak':{shadow(g,x,y,110);glow(g,X,y-s,s*1.4,0x6a8f5a,.2);
+    g.lineStyle(14,tn(0x2f4a28),1);g.beginPath();g.moveTo(X-12,y-s*.8);g.lineTo(X-14,y);g.moveTo(X+14,y-s*.8);g.lineTo(X+16,y);g.strokePath();
+    g.fillStyle(tn(0x4f7a3f),1);g.fillEllipse(X,y-s*1.25,s*1.6,s*1.5);
+    g.fillStyle(tn(0x6aa052),1);g.fillEllipse(X-4,y-s*1.5,s*1.9,s*.7);
+    g.lineStyle(10,tn(0x4f7a3f),1);g.beginPath();g.moveTo(X-18,y-s*1.5);g.lineTo(X-s*1.0,y-s*.9+bob);g.lineTo(X-s*1.1,y-s*.35+bob);g.strokePath();
+    g.fillStyle(tn(0x6aa052),1);g.fillCircle(X-8,y-s*1.95,s*.4);
+    g.fillStyle(0xf2e6c4,1);g.fillTriangle(X-22,y-s*2.05,X-16,y-s*2.0,X-26,y-s*2.5);g.fillTriangle(X-2,y-s*2.05,X+4,y-s*2.0,X+8,y-s*2.5);
+    glow(g,X-14,y-s*1.97,9,0xffd24a,.6);g.fillStyle(0xffd24a,1);g.fillCircle(X-14,y-s*1.97,3);g.fillCircle(X-3,y-s*1.97,3);
+    g.fillStyle(0xffffff,1);g.fillTriangle(X-16,y-s*1.75,X-12,y-s*1.75,X-14,y-s*1.75+10);g.fillTriangle(X-7,y-s*1.75,X-3,y-s*1.75,X-5,y-s*1.75+10);break;}
   case 'boss1':{const k=s/34;shadow(g,x,y,170);
     glow(g,X,y-s*1.2,s*1.9,m.enraged?0xff3a1a:0xff9a3a,.3);
     drawPret(g,m,X,k,fl);
@@ -299,6 +323,7 @@ function render(){
   drawList.sort((a,b)=>a.y-b.y);
   for(const it of drawList){if(it.e)drawEnemy(g,it.o);else drawPlayer(g,it.o);}
   for(const b of projs)drawProj(g,b);
+  for(const b of ebolts){glow(g,b.x,b.y,13,b.col,.9);g.fillStyle(0xffffff,.95);g.fillCircle(b.x,b.y,3.2);g.lineStyle(3,b.col,.5);g.lineBetween(b.x,b.y,b.x-b.vx*.05,b.y-b.vy*.05);}
   for(const f of fx)drawFx(g,f);
   // targeting reticle
   if(targeting>=0&&players[ctl]&&state!=='menu'){
@@ -327,6 +352,6 @@ function render(){
 function ambient(dt){
   for(const e of embers){e.x+=e.vx*dt;e.y+=e.vy*dt;e.ph+=dt*3;if(e.y<-10||e.x<-10){e.x=rnd(W*.3,W+40);e.y=H+10;}}
   for(const f of fogs){f.x+=f.v*dt;if(f.x>W+300)f.x=-300;if(f.x<-300)f.x=W+300;}
-  if(shakeAmt>.2){const a=Math.min(5,shakeAmt)*SHAKE_MUL[shakeLvl];scene.cameras.main.setScroll(rnd(-a,a),rnd(-a,a));shakeAmt*=.88;}
-  else if(shakeAmt!==0){shakeAmt=0;scene.cameras.main.setScroll(0,0);}
+  if(shakeAmt>.2){const a=Math.min(5,shakeAmt)*SHAKE_MUL[shakeLvl];scene.cameras.main.centerOn(W/2+rnd(-a,a),H/2+rnd(-a,a));shakeAmt*=.88;}
+  else if(shakeAmt!==0){shakeAmt=0;scene.cameras.main.centerOn(W/2,H/2);}
 }

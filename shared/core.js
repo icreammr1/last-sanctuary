@@ -6,11 +6,11 @@ const CFG={
   churchHp:n=>650+150*n,
   countMul:{1:.45,2:.7,3:.9,4:1},      // จำนวนมอนตามจำนวนผู้เล่น
   bossHpMul:{1:.38,2:.72,3:.88,4:1},   // เลือดบอสตามจำนวนผู้เล่น
-  hpGrow:.09,dmgGrow:.035,            // มอนแรงขึ้นต่อเวฟ
+  hpGrow:.13,dmgGrow:.09,            // มอนแรงขึ้นต่อเวฟ
   firstDelay:6,intermission:4,
-  reviveTime:4.5,reviveSupport:3,reviveHp:.4,reviveBetween:true,reviveBetweenHp:.5,
+  reviveTime:4.5,reviveSupport:3,reviveHp:.4,reviveBetween:true,reviveBetweenHp:.35,
   shareDmg:.5,                         // EXP: 70% ตามดาเมจที่ทำ / 30% หารเท่ากันทุกคนที่ยังรอด
-  maxLvl:12,maxSkill:5,hpPerLvl:.08,dmgPerLvl:.06
+  goldMul:.7,potCd:6,maxLvl:12,maxSkill:5,hpPerLvl:.08,dmgPerLvl:.06
 };
 const rnd=(a,b)=>a+Math.random()*(b-a);
 const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
@@ -32,12 +32,22 @@ const EN={
   pret:{n:'เปรต',hp:280,spd:28,dmg:22,cd:1.6,size:34,exp:20,col:0xc98a5a,h:104},
   krasue:{n:'กระสือ',hp:95,spd:62,dmg:11,cd:1.2,size:18,exp:12,col:0xff6a7a,fly:1,h:30},
   pop:{n:'ปอบ',hp:560,spd:36,dmg:34,cd:1.5,size:42,exp:34,col:0x9a2438,h:100},
+  phrai:{n:'ผีพราย',hp:80,spd:38,dmg:9,cd:2.4,size:17,exp:11,col:0x6fe3ff,h:50,rng:430},
+  phantom:{n:'ผีอำ',hp:420,spd:95,dmg:3,cd:.6,size:20,exp:16,col:0xc7b8ff,h:56,amb:1},
+  yak:{n:'ยักษ์สุสาน',hp:1500,spd:15,dmg:55,cd:2.2,size:62,exp:70,col:0x6a8f5a,h:150},
   boss1:{n:'เปรตราชา',hp:4800,spd:21,dmg:58,cd:1.8,size:74,exp:200,col:0xe8a04a,boss:1,h:230},
   boss2:{n:'พญาผีแห่งกรุงศรี',hp:16000,spd:19,dmg:85,cd:2,size:88,exp:600,col:0x9a6bff,boss:1,h:250}
 };
-function waveBoost(w){return w<=4?1.9:(w<=10?1.6:1);}
-function waveCount(w,n){return Math.max(1,Math.round(n*CFG.countMul[nP]*waveBoost(w)));}
 function waveDef(w){
+  const d=waveDefBase(w),list=d.list.slice();
+  if(w>=3)list.push(['phantom',Math.ceil((w-1)/3)]);
+  if(w>=6)list.push(['phrai',Math.floor((w-3)/2)]);
+  if(w>=7&&w%2===1)list.push(['yak',w>=15?2:1]);
+  return{list,boss:d.boss};
+}
+function waveBoost(w){return w<=4?1.9:(w<=10?1.6:1.4);}
+function waveCount(w,n){return Math.max(1,Math.round(n*CFG.countMul[nP]*waveBoost(w)));}
+function waveDefBase(w){
   const L=[null,
     [['khamot',8]],
     [['khamot',10],['krahang',3]],
@@ -57,6 +67,7 @@ function waveDef(w){
 
 /* ===================== STATE ===================== */
 let players=[],enemies=[],projs=[],zones=[],walls=[],fx=[],popups=[],sched=[],spawnQ=[];
+let ebolts=[];
 let T=0,speed=1,state='menu',wave=0,interT=0,churchHp=1,churchMax=1,ctl=0,targeting=-1;
 let nP=1,botsOn=true,botAll=false,classChosen=false,paused=false,shakeAmt=0,churchFlash=0,waveClock=0,bossRef=null,ann=null,chosen=[];
 let eid=0;
@@ -66,9 +77,9 @@ const FRONT={1:[0],2:[0,1],3:[0,2,1],4:[0,2,1,3]};
 const PRI={tank:0,gunner:1,archer:2,mage:3,support:4};
 
 const C=p=>CLS[p.cls];
-const maxHp=p=>Math.round(C(p).hp*(1+CFG.hpPerLvl*(p.lvl-1)))+(T<p.hpBuffUntil?p.hpBuff:0);
-const maxMp=p=>C(p).mp+4*(p.lvl-1);
-const dm=p=>(1+CFG.dmgPerLvl*(p.lvl-1))*(T<p.buffUntil?p.buffMul:1)*(C(p).dmul||1);
+const maxHp=p=>Math.round(C(p).hp*(1+CFG.hpPerLvl*(p.lvl-1))*(1+.12*p.buffs.hp))+(T<p.hpBuffUntil?p.hpBuff:0);
+const maxMp=p=>C(p).mp+4*(p.lvl-1)+25*p.buffs.mp;
+const dm=p=>(1+CFG.dmgPerLvl*(p.lvl-1))*(T<p.buffUntil?p.buffMul:1)*(C(p).dmul||1)*(1+.08*p.buffs.dmg);
 const hm=p=>1+.04*(p.lvl-1);
 const expNeed=l=>Math.round(40+30*Math.pow(l-1,1.35));
 const expMul=()=>nP/CFG.countMul[nP];
@@ -84,7 +95,7 @@ function toast(m){HK.toast(m);}
 function gtoast(m){HK.gtoast(m);}
 function announce(t,s,d){ann={t,s,until:T+(d||3)};}
 
-function makePlayer(i){return{i,cls:'archer',bot:false,mv:0,x:-60,y:0,tx:0,ty:0,hp:0,mana:0,lvl:1,exp:0,sp:0,skillLv:[1,1,1,1],cd:[0,0,0,0],atkT:.3,alive:true,
+function makePlayer(i,name){return{i,name:name||('ผู้เล่น '+(i+1)),gold:0,pots:{hp:2,mp:1},potCd:{hp:0,mp:0},buffs:{hp:0,mp:0,dmg:0,regen:0},cls:'archer',bot:false,mv:0,x:-60,y:0,tx:0,ty:0,hp:0,mana:0,lvl:1,exp:0,sp:0,skillLv:[1,1,1,1],cd:[0,0,0,0],atkT:.3,alive:true,
   hpBuff:0,hpBuffUntil:0,buffMul:1,buffUntil:0,rapidUntil:0,invuln:0,flash:0,kills:0,dealt:0,healed:0,deaths:0,rev:null,castAnim:0,recoil:0,botT:rnd(0,.3),slot:i};}
 
 /* ===================== COMBAT HELPERS ===================== */
@@ -124,7 +135,7 @@ function giveExp(m){
     let s=0;
     if(tot>0)s+=pool*CFG.shareDmg*(m.dmgBy[p.i]||0)/tot;else if(al.length&&p.alive)s+=pool*CFG.shareDmg/al.length;
     if(p.alive&&al.length)s+=pool*(1-CFG.shareDmg)/al.length;
-    if(s>0)gainExp(p,s);
+    if(s>0){gainExp(p,s);p.gold+=s*CFG.goldMul;}
   }
 }
 function gainExp(p,a){
@@ -133,7 +144,7 @@ function gainExp(p,a){
   p.exp+=a*(1+clamp((avg-p.lvl)*.15,0,.6));
   while(p.lvl<CFG.maxLvl&&p.exp>=expNeed(p.lvl)){
     p.exp-=expNeed(p.lvl);p.lvl++;p.sp++;
-    if(p.alive){p.hp=Math.min(maxHp(p),p.hp+maxHp(p)*.25);p.mana=maxMp(p);}
+    if(p.alive){p.hp=Math.min(maxHp(p),p.hp+maxHp(p)*.15);p.mana=Math.min(maxMp(p),p.mana+maxMp(p)*.3);}
     ring(p.x,p.y,0xffe08a,90);pop(p.x,p.y-76,'LEVEL UP!','#ffe08a',20);
   }
   if(p.lvl>=CFG.maxLvl)p.exp=0;
@@ -222,6 +233,35 @@ tank:[
    fx.push({k:'ring',x:p.x+10,y:p.y,r0:20,r1:480,col:0xaec4ff,t:0,dur:.6});shake(8);return true;}}
 ]};
 
+/* ===================== ร้านค้า / ขวดยา ===================== */
+const SHOP={
+  hpPot:{n:'ขวดเลือด',ic:'🧪',d:'ฟื้นเลือด 50% · กด Q',cost:40,cap:6},
+  mpPot:{n:'ขวดมานา',ic:'💧',d:'ฟื้นมานา 60% · กด E',cost:30,cap:6},
+  hp:{n:'เลือดสูงสุด',ic:'❤️',d:'+12% ต่อระดับ',base:100,max:5},
+  mp:{n:'มานาสูงสุด',ic:'🔷',d:'+25 ต่อระดับ',base:90,max:5},
+  dmg:{n:'ดาเมจ',ic:'⚔️',d:'+8% ต่อระดับ',base:140,max:5},
+  regen:{n:'ฟื้นมานาไว',ic:'🌀',d:'+25% ต่อระดับ',base:110,max:4}
+};
+const SHOP_IDS=Object.keys(SHOP);
+function shopCost(p,id){const s=SHOP[id];return s.cost||Math.round(s.base*Math.pow(1.6,p.buffs[id]));}
+function buyItem(p,id){
+  const s=SHOP[id];if(!p||!s)return false;
+  const c=shopCost(p,id);if(p.gold<c)return false;
+  if(id==='hpPot'||id==='mpPot'){const k=id==='hpPot'?'hp':'mp';if(p.pots[k]>=s.cap)return false;p.gold-=c;p.pots[k]++;return true;}
+  if(p.buffs[id]>=s.max)return false;
+  const hb=maxHp(p),mb=maxMp(p);p.gold-=c;p.buffs[id]++;
+  if(id==='hp'&&p.alive)p.hp+=maxHp(p)-hb;
+  if(id==='mp')p.mana+=maxMp(p)-mb;
+  return true;
+}
+function usePot(p,k){
+  if(!p||!p.alive||(k!=='hp'&&k!=='mp')||p.pots[k]<=0||T<p.potCd[k])return false;
+  p.pots[k]--;p.potCd[k]=T+CFG.potCd;
+  if(k==='hp'){const r=Math.max(0,Math.min(maxHp(p)-p.hp,maxHp(p)*.5));p.hp+=r;pop(p.x,p.y-66,'+'+Math.round(r),'#ff8f8f',16);fx.push({k:'heal',x:p.x,y:p.y,t:0,dur:.7});}
+  else{const r=Math.max(0,Math.min(maxMp(p)-p.mana,maxMp(p)*.6));p.mana+=r;pop(p.x,p.y-66,'+'+Math.round(r),'#8fc2ff',16);ring(p.x,p.y,0x4d92f2,50);}
+  return true;
+}
+
 /* ===================== PLAYER CONTROL ===================== */
 function upgrade(p,i){if(!p||p.sp<=0||p.skillLv[i]>=CFG.maxSkill)return false;p.sp--;p.skillLv[i]++;ring(p.x,p.y,0xffe08a,60);return true;}
 function pickAlly(p,x,y,usePtr){
@@ -282,8 +322,19 @@ function botTarget(p,s){
   }
   return null;
 }
+function botShop(p){
+  const want=p.cls==='tank'?['hp','dmg','regen','mp']:p.cls==='support'?['regen','hp','dmg','mp']:['dmg','hp','regen','mp'];
+  if(p.pots.hp<2&&buyItem(p,'hpPot'))return;
+  if(p.pots.mp<1&&buyItem(p,'mpPot'))return;
+  for(const id of want){const s=SHOP[id];if(p.buffs[id]<s.max&&p.gold>=shopCost(p,id)+40){buyItem(p,id);return;}}
+}
 function botThink(p,dt){
   p.botT-=dt;if(p.botT>0)return;p.botT=.3;
+  if(p.alive){
+    if(p.hp<maxHp(p)*.4)usePot(p,'hp');
+    if(p.mana<maxMp(p)*.2)usePot(p,'mp');
+    botShop(p);
+  }
   if(p.sp>0){let bi=0;for(let i=1;i<4;i++)if(p.skillLv[i]<p.skillLv[bi])bi=i;upgrade(p,bi);}
   if(!p.rev&&!nearestEnemy(p.x,p.y,260))startRevive(p);
   if(p.rev)return;
@@ -295,11 +346,13 @@ function botThink(p,dt){
 function spawn(type,x,y){
   const d=EN[type],b=!!d.boss;
   const hpm=b?CFG.bossHpMul[nP]:1+CFG.hpGrow*(wave-1);
-  const m={id:++eid,type,x:x===undefined?1330+rnd(0,60):x,y:y===undefined?(d.fly?rnd(250,360):rnd(GY0+10,GY1)):y,
-    hp:d.hp*hpm,maxHp:0,spd:d.spd*rnd(.92,1.08),dmg:b?d.dmg:d.dmg*(1+CFG.dmgGrow*(wave-1)),dmgMul:1,cd:d.cd,atkT:rnd(0,d.cd),size:d.size,exp:d.exp,col:d.col,
+  const m={id:++eid,type,rng:d.rng||0,x:x===undefined?(d.amb?rnd(430,640):1330+rnd(0,60)):x,y:y===undefined?(d.fly?rnd(250,360):rnd(GY0+10,GY1)):y,
+    hp:d.hp*hpm,maxHp:0,spd:d.spd*rnd(.92,1.08)*(b?1:1.18),dmg:b?d.dmg:d.dmg*(1+CFG.dmgGrow*(wave-1)),dmgMul:1,cd:d.cd,atkT:rnd(0,d.cd),size:d.size,exp:d.exp,col:d.col,
     fly:!!d.fly,hop:!!d.hop,boss:b,name:d.n,h:d.h,age:rnd(0,5),ph:rnd(0,6.28),flash:0,atkAnim:0,slowUntil:0,slowMul:1,dazeUntil:0,reverseUntil:0,
     burnUntil:0,burnDps:0,burnAcc:0,burnOwner:-1,dmgBy:{},last:-1,dead:false,enraged:false,phase:0,summonT:6,boltT:9};
-  m.maxHp=m.hp;enemies.push(m);if(b)bossRef=m;return m;
+  m.maxHp=m.hp;enemies.push(m);if(b)bossRef=m;
+  if(d.amb)fx.push({k:'ring',x:m.x,y:m.y,r0:6,r1:60,col:d.col,t:0,dur:.5});
+  return m;
 }
 function bossStep(m,dt){
   if(m.type==='boss1'){
@@ -328,11 +381,26 @@ function stepEnemy(m,dt){
   for(const p of players){if(!p.alive)continue;const d=hyp(m.x-p.x,m.y-(m.fly?p.y-30:p.y));if(d<td){td=d;tgt=p;}}
   const reach=m.size*.8+36;
   if(!m.fly){for(const w of walls){if(m.x>w.x-4&&m.x-w.x<m.size*.6+16){m.atkT-=dt;if(m.atkT<=0){m.atkT=m.cd;m.atkAnim=.22;w.hp-=m.dmg*.9;}return;}}}
+  if(m.rng&&tgt&&td<=m.rng){
+    m.atkT-=dt;
+    if(m.atkT<=0){m.atkT=m.cd;m.atkAnim=.22;const sx=m.x,sy=m.y-m.size*.8,dx=tgt.x-sx,dy=(tgt.y-28)-sy,L=Math.hypot(dx,dy)||1,sp=280;
+      ebolts.push({x:sx,y:sy,vx:dx/L*sp,vy:dy/L*sp,dmg:m.dmg*m.dmgMul,life:2.6,col:m.col,dead:false});}
+    return;
+  }
   if(tgt&&td<=reach){m.atkT-=dt;if(m.atkT<=0){m.atkT=m.cd;m.atkAnim=.22;hitPlayer(tgt,m.dmg*m.dmgMul);}return;}
   if(m.x<=CHX+reach*.6){m.atkT-=dt;if(m.atkT<=0){m.atkT=m.cd;m.atkAnim=.22;hitChurch(m.dmg*m.dmgMul*.8);}return;}
   m.x-=spd*dt;
   if(m.x<1100){const gy=tgt?(m.fly?tgt.y-30:tgt.y):(m.fly?470:540);const sy=spd*(m.fly?.8:.5)*dt+.3;m.y+=clamp(gy-m.y,-sy,sy);}
   if(!m.fly)m.y=clamp(m.y,GY0,GY1);
+}
+function stepEbolts(dt){
+  for(const b of ebolts){
+    b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;
+    if(b.life<=0||b.x<-20||b.x>1400||b.y<0||b.y>800){b.dead=true;continue;}
+    for(const p of players){if(!p.alive)continue;if(hyp(b.x-p.x,b.y-(p.y-28))<24){hitPlayer(p,b.dmg);b.dead=true;break;}}
+    if(!b.dead&&b.x<CHX+10){hitChurch(b.dmg*.7);b.dead=true;}
+  }
+  ebolts=ebolts.filter(b=>!b.dead);
 }
 function separate(){
   const n=enemies.length;
@@ -351,7 +419,7 @@ function stepPlayer(p,dt){
   if(p.flash>0)p.flash-=dt;if(p.castAnim>0)p.castAnim-=dt;if(p.recoil>0)p.recoil-=dt;
   if(!p.alive)return;
   if(p.hpBuff&&T>=p.hpBuffUntil){p.hpBuff=0;p.hp=Math.min(p.hp,maxHp(p));}
-  p.mana=Math.min(maxMp(p),p.mana+C(p).regen*dt);
+  p.mana=Math.min(maxMp(p),p.mana+C(p).regen*(1+.25*p.buffs.regen)*dt);
   for(let i=0;i<4;i++)if(p.cd[i]>0)p.cd[i]=Math.max(0,p.cd[i]-dt);
   if(p.rev){stepRevive(p,dt);return;}
   p.atkT-=dt;
@@ -398,13 +466,12 @@ function startWave(w){
 function waveCleared(){
   if(wave>=CFG.waves){endGame(true);return;}
   state='intermission';interT=CFG.intermission;
-  churchHp=Math.min(churchMax,churchHp+churchMax*.1);
+  churchHp=Math.min(churchMax,churchHp+churchMax*.05);
   for(const p of players){
     if(!p.alive&&CFG.reviveBetween){p.alive=true;p.hp=maxHp(p)*CFG.reviveBetweenHp;p.invuln=T+2;ring(p.x,p.y,0x9fffb0,90);}
-    else if(p.alive)p.hp=Math.min(maxHp(p),p.hp+maxHp(p)*.35);
-    p.mana=maxMp(p);p.rev=null;
+    p.rev=null;
   }
-  announce('คลื่นที่ '+wave+' ผ่านแล้ว','โบสถ์ซ่อมแซม +10% · ทุกคนฟื้นตัว',3.5);
+  announce('คลื่นที่ '+wave+' ผ่านแล้ว','โบสถ์ซ่อม +5% · เลือดผู้เล่นไม่ฟื้น ใช้ขวดยา (Q/E) หรือซัพพอร์ต',3.5);
 }
 function endGame(win,reason){
   if(state==='over')return;
@@ -424,6 +491,7 @@ function step(dt){
   for(const m of enemies)if(!m.dead)stepEnemy(m,dt);
   separate();
   stepProjs(dt);
+  stepEbolts(dt);
   for(const z of zones){
     if(T>=z.until){z.dead=true;continue;}
     z.tick-=dt;
@@ -443,10 +511,10 @@ function assignSlots(){
   const order=[...players].sort((a,b)=>PRI[a.cls]-PRI[b.cls]);
   order.forEach((p,k)=>{p.slot=FRONT[nP][k];const s=SLOT[nP][p.slot];p.tx=s[0];p.ty=s[1];});
 }
-function startGame(n,bots){
+function startGame(n,bots,names){
   nP=n;botsOn=bots;T=0;speed=1;wave=0;classChosen=false;ctl=0;targeting=-1;paused=false;ann=null;shakeAmt=0;
-  players=[];enemies=[];projs=[];zones=[];walls=[];fx=[];popups=[];sched=[];spawnQ=[];bossRef=null;chosen=[];
-  for(let i=0;i<n;i++){const p=makePlayer(i);const s=SLOT[n][i];p.tx=s[0];p.ty=s[1];p.x=s[0]-120;p.y=s[1];p.hp=maxHp(p);p.mana=maxMp(p);players.push(p);}
+  players=[];enemies=[];projs=[];ebolts=[];zones=[];walls=[];fx=[];popups=[];sched=[];spawnQ=[];bossRef=null;chosen=[];
+  for(let i=0;i<n;i++){const p=makePlayer(i,names&&names[i]);const s=SLOT[n][i];p.tx=s[0];p.ty=s[1];p.x=s[0]-120;p.y=s[1];p.hp=maxHp(p);p.mana=maxMp(p);players.push(p);}
   churchMax=churchHp=CFG.churchHp(n);
   state='intermission';interT=CFG.firstDelay;
   announce('ป้องกันโบสถ์ให้ได้ 20 คลื่น','กด 1–4 ร่ายสกิลที่ตำแหน่งเมาส์',6);
@@ -481,6 +549,8 @@ function applyCommand(idx,m){
       tryCast(p,m.i|0,t);break;}
     case 'upg':if(m.i>=0&&m.i<4)upgrade(p,m.i|0);break;
     case 'mv':p.mv=m.d>0?1:(m.d<0?-1:0);break;
+    case 'buy':if(typeof m.id==='string'&&SHOP[m.id])buyItem(p,m.id);break;
+    case 'pot':usePot(p,m.k);break;
     case 'rev':startRevive(p,players[m.q]);break;
     case 'revc':p.rev=null;break;
     case 'cls':if(state==='classSelect'&&['mage','gunner','support','tank'].includes(m.c))setChoice(idx,m.c);break;
@@ -488,7 +558,7 @@ function applyCommand(idx,m){
 }
 function playerGone(idx){
   const p=players[idx];if(!p)return;
-  p.bot=true;gtoast('ผู้เล่น '+(idx+1)+' หลุดการเชื่อมต่อ — บอทคุมแทน');
+  p.bot=true;gtoast(p.name+' หลุดการเชื่อมต่อ — บอทคุมแทน');
   if(state==='classSelect'&&!chosen[idx]){chosen[idx]='gunner';HK.onPick();checkAllChosen();}
 }
 
@@ -511,7 +581,7 @@ function buildSnaps(){
   const q=++snapSeq,out=[];
   out.push({t:'S',T:r2(T),s:state,w:wave,it:r1(interT),l:enemies.length+spawnQ.length,ch:Math.ceil(churchHp),cm:churchMax,sh:r1(shakeEvt),sp:netSpeed,cf:r2(churchFlash),
     an:ann&&T<ann.until?{t:ann.t,s:ann.s,r:r1(ann.until-T)}:null,
-    p:players.map(p=>({x:r1(p.x),y:r1(p.y),cls:p.cls,hp:r1(p.hp),mana:r1(p.mana),lvl:p.lvl,exp:r1(p.exp),sp:p.sp,sl:p.skillLv,cd:p.cd.map(r1),al:p.alive?1:0,
+    p:players.map(p=>({n:p.name,g:Math.floor(p.gold),pt:[p.pots.hp,p.pots.mp],bf:[p.buffs.hp,p.buffs.mp,p.buffs.dmg,p.buffs.regen],pc:[r1(Math.max(0,p.potCd.hp-T)),r1(Math.max(0,p.potCd.mp-T))],x:r1(p.x),y:r1(p.y),cls:p.cls,hp:r1(p.hp),mana:r1(p.mana),lvl:p.lvl,exp:r1(p.exp),sp:p.sp,sl:p.skillLv,cd:p.cd.map(r1),al:p.alive?1:0,
       hb:p.hpBuff,hbu:r1(p.hpBuffUntil),bm:r2(p.buffMul),bu:r1(p.buffUntil),ru:r1(p.rapidUntil),iv:r1(p.invuln),fl:r2(p.flash),ca:r2(p.castAnim),rc:r2(p.recoil),
       rv:p.rev?[p.rev.target.i,r1(p.rev.t),p.rev.dur]:null,k:p.kills,d:Math.round(p.dealt),h:Math.round(p.healed),dt:p.deaths,sl2:p.slot})),
     z:zones.map(z=>({k:z.kind,x:r1(z.x),y:r1(z.y),r:z.r,u:r1(z.until),sd:r2(z.sd||0)})),
@@ -521,10 +591,11 @@ function buildSnaps(){
   let pr=projs.slice(0,40).map(b=>[r1(b.x),r1(b.y),Math.round(b.vx),Math.round(b.vy),b.kind,b.col,b.r]);
   let fl=fx.slice(-12).map(f=>{const o={};for(const k in f)o[k]=typeof f[k]==='number'?r2(f[k]):f[k];return o;});
   let po=popups.slice(-10).map(a=>[r1(a.x),r1(a.y),a.txt,a.col,a.sz,r2(a.t)]);
-  const mkV=()=>({t:'V',b:pr,f:fl,po});
+  let eb=ebolts.slice(0,24).map(b=>[r1(b.x),r1(b.y),Math.round(b.vx),Math.round(b.vy),b.col]);
+  const mkV=()=>({t:'V',b:pr,f:fl,po,eb});
   let guard=0;
   while(new TextEncoder().encode(JSON.stringify(mkV())).length>3700&&guard++<30){
-    if(pr.length>6)pr=pr.slice(0,pr.length-6);else if(fl.length>3)fl=fl.slice(1);else if(po.length>2)po=po.slice(1);else break;
+    if(pr.length>6)pr=pr.slice(0,pr.length-6);else if(eb.length>8)eb=eb.slice(0,eb.length-4);else if(fl.length>3)fl=fl.slice(1);else if(po.length>2)po=po.slice(1);else break;
   }
   out.push(mkV());
   shakeEvt=0;

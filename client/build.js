@@ -7,6 +7,7 @@ const html =
   read('src', 'part1.html') +
   "(function(){\n'use strict';\n" +
   read('src', 'prelude.js') + '\n' +
+  read('src', 'audio.js') + '\n' +
   read('..', 'shared', 'core.js') + '\n' +
   read('src', 'render.js') + '\n' +
   read('src', 'ui.js') + '\n' +

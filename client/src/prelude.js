@@ -9,6 +9,7 @@ let toastTimer=0;
 const SHAKE_MUL=[0,.35,1],SHAKE_NAME=['ปิด','น้อย','ปกติ'];let shakeLvl=1;
 function uiToast(msg){const e=$('toast');e.textContent=msg;e.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>e.classList.remove('on'),2400);}
 function showEnd(win,reason){
+  sfxPlay(win?'win':'lose');clearSess();
   let h='<div class="sheet"><h2>'+(win?'โบสถ์ยังตั้งอยู่!':'โบสถ์สุดท้ายล่มสลาย')+'</h2>';
   h+='<p class="sub">'+(win?'ป้องกันครบ 20 คลื่น มนุษยชาติยังมีแสงสว่าง':(reason+' · ไปถึงคลื่นที่ '+wave))+'</p>';
   h+='<table class="res"><tr><th>ผู้เล่น</th><th>สาย</th><th>เลเวล</th><th>ฆ่าได้</th><th>ดาเมจ</th><th>ฮีล</th><th>ล้ม</th></tr>';
@@ -19,6 +20,7 @@ function showEnd(win,reason){
 }
 function guestEnd(win,reason){if(state==='over')return;state='over';targeting=-1;showEnd(win,reason);}
 const HK={
+  localSfx:true,
   toast:m=>uiToast(m),
   gtoast:m=>{uiToast(m);if(net.role==='host')netSend({t:'toast',m});},
   onEnd:(win,reason)=>{if(net.role==='host'){netSnap();netSend({t:'end',win,reason});}showEnd(win,reason);},

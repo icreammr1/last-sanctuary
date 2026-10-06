@@ -5,6 +5,7 @@
  */
 const http = require('http');
 const fs = require('fs');
+const crypto = require('crypto');
 const path = require('path');
 const { WebSocketServer } = require('ws');
 
@@ -44,6 +45,7 @@ class Room {
     this.last = 0;
     this.snapAcc = 0;
     this.destroyed = false;
+    this.emptySince = 0;
   }
   send(c, m) { if (c.ws.readyState === 1) c.ws.send(JSON.stringify(m)); }
   broadcast(m) {
@@ -53,7 +55,7 @@ class Room {
   live() { return this.clients.filter(c => !c.gone); }
   announceLobby() {
     const names = this.clients.map((c, i) => c.name || ('ผู้เล่น ' + (i + 1)));
-    this.clients.forEach((c, i) => { c.idx = i; this.send(c, { t: 'joined', idx: i, n: this.clients.length, code: this.code, names }); });
+    this.clients.forEach((c, i) => { c.idx = i; this.send(c, { t: 'joined', idx: i, n: this.clients.length, code: this.code, names, token: c.token }); });
   }
   add(c) {
     c.room = this; c.idx = this.clients.length;
@@ -64,7 +66,7 @@ class Room {
     if (this.started) {
       c.gone = true;
       if (this.game) this.game.playerGone(c.idx);
-      if (!this.live().length) this.destroy();
+      if (!this.live().length) this.emptySince = Date.now();   // รอเพื่อนกลับเข้าห้องได้ 90 วินาที
       return;
     }
     this.clients = this.clients.filter(x => x !== c);
@@ -97,6 +99,11 @@ class Room {
     if (dt > 0.25) dt = 0.25;
     const g = this.game, step = 1 / SIM_HZ;
     if (g.state === 'over') { clearInterval(this.timer); return; }
+    if (!this.live().length) {            // ไม่มีใครอยู่ในห้อง: หยุดเกมรอ
+      this.last = now;
+      if (now - this.emptySince > 90000) this.destroy();
+      return;
+    }
     this.acc += dt;
     let n = 0;
     while (this.acc >= step && n < 5) {
@@ -126,6 +133,7 @@ function handle(c, m) {
       const code = newCode();
       if (!code) return;
       c.name = cleanName(m.name, 0);
+      c.token = crypto.randomBytes(8).toString('hex');
       const r = new Room(code); rooms.set(code, r); r.add(c);
       break;
     }
@@ -136,7 +144,22 @@ function handle(c, m) {
       if (r.started) { c.ws.send(JSON.stringify({ t: 'error', m: 'ห้องนี้เริ่มเกมไปแล้ว' })); return; }
       if (r.clients.length >= 4) { c.ws.send(JSON.stringify({ t: 'error', m: 'ห้องเต็มแล้ว (สูงสุด 4 คน)' })); return; }
       c.name = cleanName(m.name, r.clients.length);
+      c.token = crypto.randomBytes(8).toString('hex');
       r.add(c);
+      break;
+    }
+    case 'rejoin': {
+      if (c.room) return;
+      const r = rooms.get(String(m.code || '').toUpperCase().slice(0, 4));
+      const old = r && r.clients.find(x => x.token && x.token === m.token);
+      if (!r || !old || !r.started || r.destroyed || !r.game) { c.ws.send(JSON.stringify({ t: 'error', m: 'กลับเข้าห้องเดิมไม่ได้ (ห้องปิดไปแล้ว)' })); return; }
+      const prevWs = old.ws;
+      c.room = r; c.idx = old.idx; c.name = old.name; c.token = old.token; c.gone = false;
+      r.clients[old.idx] = c;
+      old.room = null; old.gone = true;
+      if (prevWs !== c.ws) { try { prevWs.close(); } catch (e) { /* ignore */ } }
+      r.game.playerBack(c.idx);
+      r.send(c, { t: 'start', n: r.clients.length, idx: c.idx });
       break;
     }
     case 'start':

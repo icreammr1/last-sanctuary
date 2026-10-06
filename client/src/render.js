@@ -267,8 +267,23 @@ function drawWall(g,w){
   g.fillStyle(0xe8b85a,.9*fade);g.fillRect(x-15,GY0-32,30,6);
   g.fillStyle(0,.6);g.fillRect(x-20,GY0-48,40,5);g.fillStyle(0x7fe0d4,1);g.fillRect(x-20,GY0-48,40*Math.max(0,w.hp/w.max),5);
 }
+function drawDrop(g,d){
+  const col=[0xcfcfcf,0x5aa8ff,0xc06bff,0xffb23a][d.it.r],bob=Math.sin(T*4+d.id)*3,x=d.x,y=d.y;
+  shadow(g,x,y,22);
+  if(d.it.r>=2){g.fillStyle(col,.16);g.fillRect(x-6,y-130,12,130);}
+  glow(g,x,y-14+bob,20+d.it.r*4,col,.8);
+  g.fillStyle(col,1);g.fillTriangle(x,y-26+bob,x+9,y-14+bob,x,y-2+bob);g.fillTriangle(x,y-26+bob,x-9,y-14+bob,x,y-2+bob);
+  g.fillStyle(0xffffff,.85);g.fillTriangle(x,y-23+bob,x+4,y-15+bob,x-3,y-15+bob);
+}
 function drawZone(g,z){
   const fade=Math.min(1,(z.until-T)/.5);
+  if(z.kind==='pond'){
+    g.fillStyle(0x2fb8c8,.2*fade);g.fillEllipse(z.x,z.y,z.r*2,z.r*1.18);
+    g.fillStyle(0x7fe0d4,.12*fade);g.fillEllipse(z.x,z.y,z.r*1.5,z.r*.88);
+    for(let i=0;i<3;i++){const rr=((T*.6+i/3)%1);g.lineStyle(2,0xbffff6,(1-rr)*.7*fade);g.strokeEllipse(z.x,z.y,z.r*2*rr,z.r*1.18*rr);}
+    g.lineStyle(2,0x7fe0d4,.7*fade);g.strokeEllipse(z.x,z.y,z.r*2,z.r*1.18);
+    return;
+  }
   if(z.kind==='fire'){
     g.fillStyle(0xff4a1a,.16*fade);g.fillEllipse(z.x,z.y,z.r*2,z.r*1.18);g.lineStyle(2,0xff8a3a,.6*fade);g.strokeEllipse(z.x,z.y,z.r*2,z.r*1.18);
     for(let i=0;i<9;i++){const an=z.sd+i*2.4,rr=z.r*.8*Math.abs(Math.sin(an*1.7)),fx0=z.x+Math.cos(an)*rr,fy0=z.y+Math.sin(an)*rr*.58,fh=16+Math.sin(T*10+i*3)*7;
@@ -317,6 +332,7 @@ function render(){
   drawChurchFx(g);
   for(const z of zones)drawZone(g,z);
   for(const w of walls)drawWall(g,w);
+  for(const d of drops)drawDrop(g,d);
   drawList.length=0;
   for(const p of players)drawList.push({y:p.y,o:p,e:0});
   for(const m of enemies)drawList.push({y:m.y,o:m,e:1});

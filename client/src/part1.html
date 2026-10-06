@@ -114,6 +114,12 @@ body{height:100%;margin:0;background:var(--page-bg);color:var(--ink);font-family
 .srow .st2{flex:1;line-height:1.15}.srow .st2 small{display:block;color:var(--muted);font-size:.8em}
 .srow button{font:inherit;font-weight:700;font-size:.9em;color:#2a1308;background:linear-gradient(180deg,#ffe3a3,#e8b85a);border:0;border-radius:.4cqw;padding:.25cqw .6cqw;cursor:pointer;min-width:5.5cqw}
 .srow button:disabled{filter:grayscale(1) brightness(.55);cursor:not-allowed}
+#gear{position:absolute;left:12.2cqw;bottom:6.6cqw;display:flex;gap:.5cqw}
+.gslot{position:relative;width:3.4cqw;height:3.4cqw;border-radius:.5cqw;border:2px solid rgba(255,255,255,.15);background:rgba(10,5,6,.72);display:grid;place-items:center;font-size:1.3em;cursor:help;opacity:.9}
+.gslot.has{opacity:1;box-shadow:0 0 .8cqw var(--rc)}
+#dtip{position:absolute;display:none;pointer-events:none;padding:.5cqw .7cqw;font-size:.9em;max-width:20cqw;z-index:6;transform:translate(1cqw,-110%)}
+#dtip b{display:block;margin-bottom:.15cqw}
+#conn{position:absolute;top:1.2cqw;left:50%;transform:translateX(-50%);display:none;z-index:30;padding:.6cqw 1.4cqw;color:var(--gold-2);font-weight:700}
 #xp{position:absolute;left:0;right:0;bottom:0;height:.45cqw;background:rgba(0,0,0,.55)}
 #xp i{display:block;height:100%;transform-origin:left;background:var(--gold);transition:transform .2s}
 .modal{position:absolute;inset:0;display:grid;place-items:center;z-index:20;pointer-events:auto;overflow:auto;background:radial-gradient(ellipse at 50% 40%,rgba(34,12,8,.5),rgba(3,1,1,.9))}
@@ -165,7 +171,7 @@ table.res th{color:var(--muted);font-weight:600}
     <div id="top">
       <div class="panel" id="waveBox"><div class="lbl">คลื่นที่</div><div class="wn"><b id="wN">0</b><span>/ 20</span></div><div class="sub" id="wLeft">—</div></div>
       <div class="panel" id="churchBox"><div class="row"><span>โบสถ์</span><span id="chTxt"></span></div><div class="bar big"><i id="chBar"></i></div></div>
-      <div class="ctrls ia"><button class="btn" id="bShake">สั่นจอ: น้อย</button><button class="btn" id="bSpeed">ความเร็ว ×1</button><button class="btn" id="bPause">พัก</button></div>
+      <div class="ctrls ia"><button class="btn" id="bSound">เสียง: ทั้งหมด</button><button class="btn" id="bSpeed">ความเร็ว ×1</button><button class="btn" id="bPause">พัก</button></div>
     </div>
     <div id="boss" class="panel"><div class="row"><b id="bossName"></b><span id="bossTxt"></span></div><div class="bar big"><i id="bossBar"></i></div></div>
     <div id="party"></div>
@@ -180,6 +186,8 @@ table.res th{color:var(--muted);font-weight:600}
       <button class="pot" id="shopBtn" title="ร้านค้า (B)"><span class="ic">🛒</span><span class="key">B</span></button>
     </div>
     <div id="shop" class="panel"></div>
+    <div id="gear" class="ia"></div>
+    <div id="dtip" class="panel"></div>
     <div id="skills"></div>
     <div id="mv" class="ia"><button class="mvb" id="mvUp" aria-label="เดินขึ้น">▲</button><button class="mvb" id="mvDown" aria-label="เดินลง">▼</button></div>
     <div id="hint"></div>
@@ -193,6 +201,7 @@ table.res th{color:var(--muted);font-weight:600}
     <div class="lbl2">จำนวนผู้เล่น <small>โหมดทดสอบเครื่องเดียว สลับตัวละครด้วย TAB</small></div>
     <input id="nameIn" class="codein" maxlength="12" placeholder="ชื่อของคุณ" autocomplete="off" style="width:22cqw;letter-spacing:0;text-transform:none;margin-bottom:1cqw">
     <div class="chips" id="chips"></div>
+    <button class="cta ghost hide" id="resumeBtn2" style="margin:0 0 1cqw">กลับเข้าห้องเดิม</button>
     <label class="chk"><input type="checkbox" id="botChk" checked> ให้บอทคุมตัวละครที่เราไม่ได้ควบคุม (ใช้ทดสอบเล่นหลายคน)</label>
     <div class="lobrow"><button class="cta" id="startBtn">เริ่มป้องกันโบสถ์</button><button class="cta ghost" id="onlineBtn">เล่นกับเพื่อน (ออนไลน์)</button></div>
     <ul class="how">
@@ -209,6 +218,7 @@ table.res th{color:var(--muted);font-weight:600}
   <div class="modal hide" id="mLobby"></div>
   <div class="modal hide" id="mEnd"></div>
   <div class="modal hide" id="mPause"><div class="sheet"><h2>พักเกม</h2><p class="sub">กด P หรือปุ่มด้านล่างเพื่อเล่นต่อ</p><button class="cta" id="resumeBtn">เล่นต่อ</button></div></div>
+  <div id="conn" class="panel">การเชื่อมต่อหลุด กำลังเชื่อมต่อใหม่…</div>
   <div id="rot">หมุนหน้าจอเป็นแนวนอนเพื่อเล่น</div>
 </div>
 <script>

@@ -46,6 +46,8 @@ class Room {
     this.snapAcc = 0;
     this.destroyed = false;
     this.emptySince = 0;
+    this.ended = false;
+    this.endTimer = null;
   }
   send(c, m) { if (c.ws.readyState === 1) c.ws.send(JSON.stringify(m)); }
   broadcast(m) {
@@ -53,34 +55,54 @@ class Room {
     for (const c of this.clients) if (!c.gone && c.ws.readyState === 1) c.ws.send(s);
   }
   live() { return this.clients.filter(c => !c.gone); }
+  lobbyList() { return this.clients.filter(c => c.inLobby !== false && !c.gone); }
   announceLobby() {
-    const names = this.clients.map((c, i) => c.name || ('ผู้เล่น ' + (i + 1)));
-    this.clients.forEach((c, i) => { c.idx = i; this.send(c, { t: 'joined', idx: i, n: this.clients.length, code: this.code, names, token: c.token }); });
+    const list = this.lobbyList();
+    const names = list.map((c, i) => c.name || ('ผู้เล่น ' + (i + 1)));
+    list.forEach((c, i) => { c.idx = i; this.send(c, { t: 'joined', idx: i, n: list.length, code: this.code, names, token: c.token }); });
   }
   add(c) {
-    c.room = this; c.idx = this.clients.length;
+    c.room = this; c.inLobby = true;
     this.clients.push(c);
     this.announceLobby();
   }
   remove(c) {
     if (this.started) {
       c.gone = true;
+      if (this.ended) { if (!this.live().length) this.destroy(); return; }
       if (this.game) this.game.playerGone(c.idx);
       if (!this.live().length) this.emptySince = Date.now();   // รอเพื่อนกลับเข้าห้องได้ 90 วินาที
       return;
     }
     this.clients = this.clients.filter(x => x !== c);
     if (!this.clients.length) { this.destroy(); return; }
-    this.announceLobby();   // ส่ง idx ใหม่ + จำนวนคน (คนแรกในห้องเป็นผู้เริ่มเกม)
+    this.announceLobby();   // ส่ง idx ใหม่ + จำนวนคน (คนแรกในล็อบบี้เป็นผู้เริ่มเกม)
+  }
+  resetLobby() {
+    clearTimeout(this.endTimer); clearInterval(this.timer);
+    this.game = null; this.started = false; this.ended = false;
+    this.clients = this.clients.filter(x => !x.gone);
+    this.clients.forEach(x => { x.inLobby = false; });
+  }
+  returnToLobby(c) {
+    if (this.started && !this.ended) return;
+    if (this.ended) this.resetLobby();
+    c.inLobby = true;
+    this.announceLobby();
   }
   start() {
-    if (this.started || !this.clients.length) return;
+    if (this.started) return;
+    const stay = this.lobbyList();
+    if (!stay.length) return;
+    for (const c of this.clients) if (!stay.includes(c)) { c.room = null; try { c.ws.send(JSON.stringify({ t: 'error', m: 'ห้องเริ่มเกมใหม่แล้ว' })); } catch (e) { /* ignore */ } }
+    this.clients = stay;
+    this.clients.forEach((c, i) => { c.idx = i; });
     this.started = true;
     const room = this;
     const HK = {
       toast() {},
       gtoast(m) { room.broadcast({ t: 'toast', m }); },
-      onEnd(win, reason) { room.sendSnaps(); room.broadcast({ t: 'end', win, reason }); setTimeout(() => room.destroy(), 30000); },
+      onEnd(win, reason) { room.sendSnaps(); room.ended = true; room.broadcast({ t: 'end', win, reason }); room.endTimer = setTimeout(() => room.destroy(), 10 * 60 * 1000); },
       onChurchHit() {}, onStart() {}, onClassOpen() {}, onPick() {}, onClassConfirm() {},
       autoConfirm: () => true,
     };
@@ -142,7 +164,7 @@ function handle(c, m) {
       const r = rooms.get(String(m.code || '').toUpperCase().slice(0, 4));
       if (!r) { c.ws.send(JSON.stringify({ t: 'error', m: 'ไม่พบห้องนี้ ตรวจรหัสอีกครั้ง' })); return; }
       if (r.started) { c.ws.send(JSON.stringify({ t: 'error', m: 'ห้องนี้เริ่มเกมไปแล้ว' })); return; }
-      if (r.clients.length >= 4) { c.ws.send(JSON.stringify({ t: 'error', m: 'ห้องเต็มแล้ว (สูงสุด 4 คน)' })); return; }
+      if (r.clients.filter(x => !x.gone).length >= 4) { c.ws.send(JSON.stringify({ t: 'error', m: 'ห้องเต็มแล้ว (สูงสุด 4 คน)' })); return; }
       c.name = cleanName(m.name, r.clients.length);
       c.token = crypto.randomBytes(8).toString('hex');
       r.add(c);
@@ -162,8 +184,11 @@ function handle(c, m) {
       r.send(c, { t: 'start', n: r.clients.length, idx: c.idx });
       break;
     }
+    case 'lobby':
+      if (c.room && (c.room.ended || !c.room.started)) c.room.returnToLobby(c);
+      break;
     case 'start':
-      if (c.room && c.idx === 0 && !c.room.started) c.room.start();
+      if (c.room && !c.room.started && c.room.lobbyList()[0] === c) c.room.start();
       break;
     default:
       if (c.room && c.room.started && c.room.game && !c.gone) c.room.game.applyCommand(c.idx, m);

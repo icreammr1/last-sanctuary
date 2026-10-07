@@ -124,8 +124,8 @@ function updateHud(){
   }
   // orbs / pots / shop / me
   const mh=maxHp(p),mm=maxMp(p);
-  sOrb($('orbHp'),p.hp/mh,Math.ceil(p.hp)+'<br><small>/'+mh+'</small>');
-  sOrb($('orbMp'),p.mana/mm,Math.floor(p.mana)+'<br><small>/'+mm+'</small>');
+  sOrb($('orbHp'),p.hp/mh,String(Math.ceil(p.hp)));
+  sOrb($('orbMp'),p.mana/mm,String(Math.floor(p.mana)));
   for(const [id,k] of [['potHp','hp'],['potMp','mp']]){
     const b=$(id),n=p.pots[k],cd=Math.max(0,p.potCd[k]-T);
     sT(b.querySelector('.cnt'),String(n));b.classList.toggle('empty',n<=0);
@@ -164,7 +164,7 @@ function showClassSelect(){
   let h='<div class="sheet"><h2>เลือกสายอาชีพ</h2><p class="sub">คลื่นที่ 5 · ทุกคนเลือกพร้อมกัน · แต้มสกิลที่เคยอัพจะคืนให้ทั้งหมด</p>';
   for(const i of rows){
     h+='<div class="prow"><div class="pname">'+PLAYER_LABEL(i)+'<small>Lv '+players[i].lvl+'</small></div><div class="copts">';
-    for(const k of['mage','gunner','support','tank']){const c=CLS[k];
+    for(const k of['mage','gunner','summoner','support','tank']){const c=CLS[k];
       h+='<button class="copt" data-p="'+i+'" data-c="'+k+'" style="--c:'+c.css+'"><b>'+c.icon+' '+c.name+'</b><em>'+c.role+'</em><small>'+SKILLS[k].map(s=>s.n).join(' · ')+'</small></button>';}
     h+='</div></div>';
   }
@@ -267,6 +267,7 @@ function create(){
   scene=this;
   makeBg(this);
   this.add.image(0,0,'bg').setOrigin(0,0).setDepth(0);
+  makeFg(this);this.add.image(0,0,'fg').setOrigin(0,0).setDepth(3);
   gfx=this.add.graphics().setDepth(2);
   for(let i=0;i<60;i++){
     const t=this.add.text(0,0,'',{fontFamily:'Arial, sans-serif',fontSize:'16px',fontStyle:'bold',color:'#ffffff',stroke:'#000000',strokeThickness:3}).setDepth(5).setOrigin(.5,1).setVisible(false).setResolution(RS);
@@ -522,7 +523,7 @@ function onServerMsg(m){
     case 'joined':try{localStorage.setItem('ls_sess',JSON.stringify({code:m.code,token:m.token,t:Date.now()}));}catch(e){}
       net.role='guest';net.idx=m.idx;net.code=m.code;net.lobbyN=m.n;net.names=m.names||[];net.lobbyHost=m.idx===0;lobMsg='';if(!net.started)lobbyRender();break;
     case 'lobby':net.lobbyN=m.n;net.names=m.names||net.names;if(!net.started&&net.role)lobbyRender();break;
-    case 'error':lobMsg=String(m.m||'เกิดข้อผิดพลาด');netLeave(false);lobbyRender();break;
+    case 'error':lobMsg=String(m.m||'เกิดข้อผิดพลาด');$('mEnd').classList.add('hide');state='menu';netLeave(false);$('mLobby').classList.remove('hide');lobbyRender();break;
     default:onHostMsg(m);
   }
 }
@@ -563,7 +564,7 @@ function joinViaPeer(code){
   peer.on('error',e=>lobStatus(e.type==='peer-unavailable'?'ไม่พบห้องนี้ ตรวจรหัสอีกครั้ง':'เชื่อมต่อผิดพลาด ('+e.type+')'));
 }
 function guestStart(n,idx){
-  nP=n;ctl=idx;net.idx=idx;net.started=true;net.emap=new Map();
+  nP=n;ctl=idx;net.idx=idx;net.started=true;net.emap=new Map();net.mmap=new Map();minions=[];trees=[];
   state='intermission';T=0;wave=0;players=[];enemies=[];projs=[];zones=[];walls=[];fx=[];popups=[];sched=[];spawnQ=[];bossRef=null;ann=null;
   classChosen=false;targeting=-1;paused=false;shakeAmt=0;skillKey='';
   $('mLobby').classList.add('hide');$('mMenu').classList.add('hide');$('mEnd').classList.add('hide');$('mClass').classList.add('hide');
@@ -589,7 +590,8 @@ function applyS(s){
   if(players.length!==s.p.length){players=s.p.map((_,i)=>makePlayer(i));buildParty();skillKey='';}
   s.p.forEach((a,i)=>{
     const p=players[i];
-    p.name=a.n||p.name;p.gold=a.g||0;p.pots={hp:a.pt[0],mp:a.pt[1]};p.buffs={hp:a.bf[0],mp:a.bf[1],dmg:a.bf[2],regen:a.bf[3]};p.potCd={hp:a.pc[0]+s.T,mp:a.pc[1]+s.T};
+    p.name=a.n||p.name;p.gold=a.g||0;p.pots={hp:a.pt[0],mp:a.pt[1]};p.buffs={hp:a.bf[0],mp:a.bf[1],dmg:a.bf[2],regen:a.bf[3],cdr:a.bf[4]||0};p.potCd={hp:a.pc[0]+s.T,mp:a.pc[1]+s.T};
+    p.taken=a.tk||0;
     p.cls=a.cls;p.hp=a.hp;p.mana=a.mana;p.lvl=a.lvl;p.exp=a.exp;p.sp=a.sp;p.skillLv=a.sl;p.cd=a.cd;p.alive=!!a.al;
     p.hpBuff=a.hb;p.hpBuffUntil=a.hbu;p.buffMul=a.bm;p.buffUntil=a.bu;p.rapidUntil=a.ru;p.invuln=a.iv;p.flash=a.fl;p.castAnim=a.ca;p.recoil=a.rc;
     p.kills=a.k;p.dealt=a.d;p.healed=a.h;p.deaths=a.dt;p.slot=a.sl2;p.sx=a.x;p.sy=a.y;
@@ -637,6 +639,11 @@ function applyV(v){
   drops=(v.dr||[]).map(a=>({id:a[0],x:a[1],y:a[2],it:{r:a[3],s:a[4],n:a[5],af:a[6]}}));
   projs=v.b.map(a=>({x:a[0],y:a[1],vx:a[2],vy:a[3],kind:a[4],col:a[5],r:a[6],dead:false}));
   ebolts=(v.eb||[]).map(a=>({x:a[0],y:a[1],vx:a[2],vy:a[3],col:a[4],dead:false}));
+  {const seen=new Set();
+   minions=(v.mn||[]).map(a=>{let w=net.mmap.get(a[0]);if(!w){w={id:a[0],own:a[1],x:a[2],y:a[3],age:rnd(0,3),isM:true,atkAnim:0};net.mmap.set(a[0],w);}
+     w.tx=a[2];w.ty=a[3];w.hp=a[4];w.max=100;w.face=a[5];w.flash=a[6];w.kind=a[7]?'elephant':'wolf';seen.add(a[0]);return w;});
+   for(const id of [...net.mmap.keys()])if(!seen.has(id))net.mmap.delete(id);}
+  trees=(v.tr||[]).map(a=>({id:a[0],x:a[1],y:a[2],hp:a[3],max:100,until:T+a[4],age:0}));
   fx=v.f;popups=v.po.map(a=>({x:a[0],y:a[1],txt:a[2],col:a[3],sz:a[4],t:a[5],dur:.85}));
 }
 function guestStep(dt){
@@ -647,6 +654,8 @@ function guestStep(dt){
   for(const m of enemies){m.x+=(m.tx-m.x)*k;m.y+=(m.ty-m.y)*k;m.age+=g;if(m.flash>0)m.flash-=dt;if(m.atkAnim>0)m.atkAnim-=dt;}
   for(const b of projs){b.x+=b.vx*g;b.y+=b.vy*g;}
   for(const b of ebolts){b.x+=b.vx*g;b.y+=b.vy*g;}
+  for(const w of minions){w.x+=(w.tx-w.x)*k;w.y+=(w.ty-w.y)*k;w.age+=g;if(w.flash>0)w.flash-=dt;}
+  for(const t of trees)t.age+=g;
   for(const f of fx)f.t+=g;fx=fx.filter(f=>f.t<f.dur);
   for(const q of popups)q.t+=dt;popups=popups.filter(q=>q.t<q.dur);
   if(churchFlash>0)churchFlash-=dt;
@@ -655,4 +664,4 @@ function guestStep(dt){
 window.__boot=boot;
 window.__dbg={startGame,step,get state(){return state;},get wave(){return wave;},get players(){return players;},get enemies(){return enemies;},
   get churchHp(){return churchHp;},get T(){return T;},setBotAll(v){botAll=v;botsOn=true;},confirmAuto(){API.autoPick(window.__cls||['tank','mage','gunner','support']);},
-  upd:update,cr:create,net:{hostRoom,joinRoom,hostStart,pickClass,castCmd,upgCmd,lobbyStart(){netToHost({t:'start'});},holdKey(k,v){held[k]=v;},get ws(){return net.ws;},get drops(){return drops;},pickCmd,potCmd,buyCmd,get gear(){return players[ctl]&&players[ctl].gear;},get code(){return net.code;},get tp(){return net.tp;},get role(){return net.role;},get ctl(){return ctl;}},get nP(){return nP;}};
+  upd:update,cr:create,net:{hostRoom,joinRoom,hostStart,pickClass,castCmd,upgCmd,lobbyStart(){netToHost({t:'start'});},holdKey(k,v){held[k]=v;},goLobby,get minions(){return minions;},get trees(){return trees;},get ws(){return net.ws;},get drops(){return drops;},pickCmd,potCmd,buyCmd,get gear(){return players[ctl]&&players[ctl].gear;},get code(){return net.code;},get tp(){return net.tp;},get role(){return net.role;},get ctl(){return ctl;}},get nP(){return nP;}};

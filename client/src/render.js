@@ -55,6 +55,8 @@ function makeBg(sc){
   const near=0x1a0708;
   ruinWall(g,240,420,470,38,near,R);ruinWall(g,600,760,470,44,near,R);ruinWall(g,930,1100,470,36,near,R);
   palm(g,470,472,150,near,R);palm(g,880,472,130,near,R);palm(g,1160,474,160,near,R);palm(g,330,474,120,near,R);
+  // ป่าทึบฝั่งขวา (ที่ผีออกมา)
+  jungle(g,R);
   // ground
   band(g,0,455,W,265,0x2b130f,0x080303,44);
   g.fillStyle(0x5a2a1a,.28);g.fillRect(0,GY0-4,W,GY1-GY0+34);
@@ -65,6 +67,24 @@ function makeBg(sc){
   band(g,0,640,W,80,0x0a0404,0x040101,10);
   church(g);
   g.generateTexture('bg',W,H);g.destroy();
+}
+function jungle(g,R){
+  const cols=[0x0a1a0e,0x0d2212,0x112a16];
+  for(let i=0;i<22;i++){const x=1000+R()*300,h=170+R()*150;g.fillStyle(0x1a0f08,1);g.fillRect(x,470-h,8+R()*10,h);}
+  for(let i=0;i<70;i++){const x=980+R()*330,y=280+R()*200,rr=22+R()*40;g.fillStyle(cols[(R()*3)|0],.95);g.fillCircle(x,y,rr);}
+  for(let i=0;i<8;i++)palm(g,1030+R()*240,474,120+R()*70,0x08150b,R);
+  for(let i=0;i<30;i++){const x=1000+R()*290,y=440+R()*40;g.fillStyle(0x0b2410,.9);g.fillTriangle(x-14,y+30,x,y-12-R()*22,x+14,y+30);}
+  for(let r=140;r>30;r-=22){g.fillStyle(0xff6a1f,.018);g.fillCircle(1130,470,r);}
+}
+function makeFg(sc){
+  const g=sc.make.graphics({x:0,y:0,add:false});
+  let sd=23;const R=()=>{sd=(sd*16807)%2147483647;return sd/2147483647;};
+  for(let i=0;i<30;i++){const x=1050+R()*150,y=250+R()*390,rr=18+R()*34;g.fillStyle(0x0b1c0e,.18+R()*.3);g.fillCircle(x,y,rr);}
+  for(let i=0;i<10;i++){const x=1175+R()*115,w=14+R()*24;g.fillStyle(0x140b07,1);g.fillRect(x,290+R()*70,w,440);g.fillTriangle(x-10,650,x+w+10,650,x+w/2,520);}
+  for(let i=0;i<56;i++){const x=1130+R()*190,y=250+R()*400,rr=24+R()*46;g.fillStyle(0x07140a+((R()*0x0a)<<8),.93);g.fillCircle(x,y,rr);}
+  for(let i=0;i<14;i++){const x=1150+R()*140,y0=290+R()*70;g.lineStyle(2,0x153015,.85);g.beginPath();g.moveTo(x,y0);g.lineTo(x+R()*14-7,y0+60+R()*90);g.lineTo(x+R()*18-9,y0+140+R()*90);g.strokePath();}
+  for(let i=0;i<18;i++){const x=1120+R()*170,y=640+R()*70;g.fillStyle(0x07140a,.95);g.fillTriangle(x-16,y+40,x,y-24-R()*20,x+16,y+40);}
+  g.generateTexture('fg',W,H);g.destroy();
 }
 function church(g){
   const gold=0xe8b85a;
@@ -252,6 +272,13 @@ function drawPlayer(g,p){
   case 'support':
     glow(g,x,y-52+bob,18,0x7fe0d4,.55);g.lineStyle(2,0xbffff6,.9);g.strokeCircle(x,y-62+bob,9);
     g.lineStyle(3,0xd8c8a0,1);g.lineBetween(x+14,y-4,x+14,y-58);glow(g,x+14,y-62,12,0x7fe0d4,.7);g.fillStyle(0xe8fffb,1);g.fillCircle(x+14,y-62,4.5);break;
+  case 'summoner':{
+    g.fillStyle(0x2a3a22,1);g.fillCircle(x-2,y-59+bob,5);g.fillStyle(0x7ad66a,1);g.fillTriangle(x-8,y-56+bob,x-3,y-64+bob,x+2,y-56+bob);
+    const hx=x+15+rc,hy=y-32;
+    glow(g,hx,hy,16,0x7ad66a,.55+(p.castAnim>0?.3:0));g.fillStyle(0xe8ffd8,1);g.fillCircle(hx,hy,4.5);
+    g.lineStyle(2,0xcfffbf,.8);g.beginPath();g.arc(hx,hy,9,T*3,T*3+4,false);g.strokePath();
+    g.lineStyle(4,0xe8c9a0,1);g.lineBetween(x+6,y-36,hx-4,hy+3);
+    break;}
   case 'tank':
     g.fillStyle(0x9aa6c0,1);g.fillRect(x-9,y-60+bob,18,9);g.fillStyle(0xd8473b,1);g.fillTriangle(x-3,y-60+bob,x+3,y-60+bob,x,y-72+bob);
     g.fillStyle(0x8aa4d6,1);g.fillEllipse(x+16+rc,y-26,18,38);g.lineStyle(2.5,0xe8b85a,1);g.strokeEllipse(x+16+rc,y-26,18,38);g.fillStyle(0xe8b85a,1);g.fillCircle(x+16+rc,y-26,4);break;
@@ -266,6 +293,50 @@ function drawWall(g,w){
   for(let y=GY0-24;y<GY1+16;y+=24){const off=(((y/24)|0)%2)*5;g.fillStyle(0x8a6a4a,fade);g.fillRect(x-12+off*.4,y,24,22);g.lineStyle(1.5,0xe8b85a,.85*fade);g.strokeRect(x-12+off*.4,y,24,22);}
   g.fillStyle(0xe8b85a,.9*fade);g.fillRect(x-15,GY0-32,30,6);
   g.fillStyle(0,.6);g.fillRect(x-20,GY0-48,40,5);g.fillStyle(0x7fe0d4,1);g.fillRect(x-20,GY0-48,40*Math.max(0,w.hp/w.max),5);
+}
+function drawWolf(g,w){
+  const x=w.x,y=w.y,f=w.face||1,a=w.age,run=Math.sin(a*16)*4,fl=w.flash>0,col=fl?0xffffff:0x8f9f90,fury=w.fury>0&&(w.fury>T||w.fury===1);
+  shadow(g,x,y,44);
+  if(fury)glow(g,x,y-18,32,0xff6a3a,.45);
+  g.lineStyle(4,fl?0xffffff:0x56655a,1);
+  g.lineBetween(x-f*12,y-12,x-f*14+run*f,y);g.lineBetween(x-f*6,y-12,x-f*6-run*f,y);
+  g.lineBetween(x+f*10,y-12,x+f*12-run*f,y);g.lineBetween(x+f*16,y-12,x+f*18+run*f,y);
+  g.fillStyle(col,1);g.fillEllipse(x,y-20,42,20);
+  g.fillStyle(fl?0xffffff:0xb5c5b5,1);g.fillEllipse(x+f*4,y-15,26,9);
+  g.lineStyle(5,fl?0xffffff:0x7a8a7c,1);g.beginPath();g.moveTo(x-f*20,y-22);g.lineTo(x-f*30,y-30+Math.sin(a*10)*3);g.strokePath();
+  g.fillStyle(col,1);g.fillCircle(x+f*22,y-25,9);
+  g.fillTriangle(x+f*30,y-26,x+f*38,y-22,x+f*30,y-20);
+  g.fillTriangle(x+f*16,y-31,x+f*19,y-40,x+f*23,y-31);g.fillTriangle(x+f*22,y-31,x+f*26,y-39,x+f*28,y-30);
+  glow(g,x+f*24,y-27,7,0xffd24a,.7);g.fillStyle(0xffe27a,1);g.fillCircle(x+f*24,y-27,1.8);
+  if(w.atkAnim>0){g.fillStyle(0xffffff,1);g.fillTriangle(x+f*34,y-21,x+f*36,y-21,x+f*35,y-17);}
+  const bw=34;g.fillStyle(0,.6);g.fillRect(x-bw/2,y-50,bw,4);g.fillStyle(0x7ad66a,1);g.fillRect(x-bw/2,y-50,bw*Math.max(0,w.hp/w.max),4);
+}
+function drawElephantM(g,w){
+  const x=w.x,y=w.y,f=w.face||1,a=w.age,st=Math.sin(a*6)*4,fl=w.flash>0,body=fl?0xffffff:0x76726e,swing=w.atkAnim>0?Math.sin(w.atkAnim/.3*Math.PI)*26:0;
+  shadow(g,x,y,150);
+  g.lineStyle(14,fl?0xffffff:0x5a5654,1);
+  g.lineBetween(x-f*28,y-44,x-f*30+st,y);g.lineBetween(x-f*6,y-44,x-f*4-st,y);g.lineBetween(x+f*30,y-44,x+f*32-st,y);g.lineBetween(x+f*52,y-44,x+f*54+st,y);
+  g.fillStyle(body,1);g.fillEllipse(x,y-66,150,84);
+  g.fillStyle(0xd4a63a,1);g.fillRect(x-34,y-112,70,12);g.fillStyle(0xb3261e,1);g.fillRect(x-30,y-100,62,14);
+  g.fillStyle(body,1);g.fillCircle(x+f*72,y-76,26);g.fillEllipse(x+f*60,y-70,18,40);
+  g.lineStyle(12,body,1);g.beginPath();g.moveTo(x+f*86,y-70);g.lineTo(x+f*104,y-40+st-swing);g.lineTo(x+f*96,y-12+st-swing*.5);g.strokePath();
+  g.fillStyle(0xf4ecd0,1);g.fillTriangle(x+f*82,y-60,x+f*112,y-52,x+f*84,y-48);
+  glow(g,x+f*78,y-82,9,0xffd24a,.6);g.fillStyle(0xffd24a,1);g.fillCircle(x+f*78,y-82,2.4);
+  if(w.atkAnim>0){g.lineStyle(3,0xffe08a,.6*(w.atkAnim/.3));g.strokeEllipse(x+f*100,y,190,60);}
+  const bw=70;g.fillStyle(0,.6);g.fillRect(x-bw/2,y-128,bw,5);g.fillStyle(0x7ad66a,1);g.fillRect(x-bw/2,y-128,bw*Math.max(0,w.hp/w.max),5);
+}
+function drawTree(g,t){
+  const fade=Math.min(1,Math.max(0,(t.until-T)/.6)),x=t.x,y=t.y,a=t.age,sw=Math.sin(a*5)*10;
+  shadow(g,x,y,70);
+  g.fillStyle(0x4a2f1c,fade);g.fillTriangle(x-12,y,x+12,y,x+5,y-62);g.fillTriangle(x-12,y,x+5,y-62,x-5,y-62);
+  g.fillStyle(0x2d6a34,fade);g.fillCircle(x,y-78,30);g.fillCircle(x-22,y-64,20);g.fillCircle(x+22,y-64,20);
+  g.fillStyle(0x3f8f48,fade);g.fillCircle(x-6,y-86,20);
+  g.lineStyle(5,0x4a2f1c,fade);
+  g.beginPath();g.moveTo(x-8,y-56);g.lineTo(x-46+sw,y-40);g.lineTo(x-66+sw*1.6,y-24);g.strokePath();
+  g.beginPath();g.moveTo(x+8,y-56);g.lineTo(x+46-sw,y-40);g.lineTo(x+66-sw*1.6,y-24);g.strokePath();
+  g.fillStyle(0x9aff7a,fade*.8);g.fillCircle(x-66+sw*1.6,y-24,4);g.fillCircle(x+66-sw*1.6,y-24,4);
+  g.lineStyle(1.5,0x9aff7a,fade*.35);g.strokeEllipse(x,y,250,146);
+  g.fillStyle(0,.6);g.fillRect(x-20,y-116,40,4);g.fillStyle(0x7ad66a,1);g.fillRect(x-20,y-116,40*Math.max(0,t.hp/t.max),4);
 }
 function drawDrop(g,d){
   const col=[0xcfcfcf,0x5aa8ff,0xc06bff,0xffb23a][d.it.r],bob=Math.sin(T*4+d.id)*3,x=d.x,y=d.y;
@@ -321,6 +392,17 @@ function drawFx(g,f){
   case 'beam':{const w=40*(1-p);g.lineStyle(w*1.8,f.col,.25*(1-p));g.lineBetween(f.x0,f.y0,f.x1,f.y1);g.lineStyle(w,f.col,.7*(1-p*.5));g.lineBetween(f.x0,f.y0,f.x1,f.y1);g.lineStyle(w*.35,0xffffff,1-p);g.lineBetween(f.x0,f.y0,f.x1,f.y1);break;}
   case 'bolt':{if(p<.8){const r=10+p*30;glow(g,f.x0,f.y0,r*1.6,0x9a6bff,.8);g.fillStyle(0xffffff,.8);g.fillCircle(f.x0,f.y0,r*.3);g.lineStyle(2,0x9a6bff,.35);g.lineBetween(f.x0,f.y0,f.x1,f.y1);}
     else{const a=(p-.8)/.2;g.lineStyle(16*(1-a),0x9a6bff,.7);g.lineBetween(f.x0,f.y0,f.x1,f.y1);g.lineStyle(5*(1-a),0xffffff,1);g.lineBetween(f.x0,f.y0,f.x1,f.y1);}break;}
+  case 'boar':{
+    const bx=f.x0+(f.x1-f.x0)*p,y=f.y,st=Math.sin(f.t*30)*5,fade=p>.9?(1-p)*10:1;
+    shadow(g,bx,y,90);
+    for(let i=0;i<7;i++){g.fillStyle(0x9a8a6a,.28*fade);g.fillCircle(bx-46-i*22,y-5-(i%2)*7,8+i*2);}
+    g.lineStyle(7,0x3a2418,fade);g.lineBetween(bx-22,y-22,bx-26+st,y);g.lineBetween(bx-8,y-22,bx-6-st,y);g.lineBetween(bx+16,y-22,bx+20-st,y);g.lineBetween(bx+30,y-22,bx+34+st,y);
+    g.fillStyle(0x5a3a24,fade);g.fillEllipse(bx,y-34,84,46);
+    g.fillStyle(0x3a2418,fade);for(let i=0;i<6;i++)g.fillTriangle(bx-34+i*11,y-54,bx-28+i*11,y-66,bx-22+i*11,y-54);
+    g.fillStyle(0x5a3a24,fade);g.fillCircle(bx+42,y-34,17);g.fillEllipse(bx+56,y-30,26,18);
+    g.fillStyle(0xf4ecd0,fade);g.fillTriangle(bx+52,y-26,bx+68,y-40,bx+60,y-24);g.fillTriangle(bx+48,y-24,bx+58,y-14,bx+60,y-24);
+    glow(g,bx+46,y-40,9,0xff4a2a,.7*fade);g.fillStyle(0xff4a2a,fade);g.fillCircle(bx+46,y-40,2.4);
+    break;}
   case 'heal':{for(let i=0;i<4;i++){const px=f.x-14+i*9,py=f.y-20-p*50+i*5;g.lineStyle(2.5,0x9fffb0,1-p);g.lineBetween(px-4,py,px+4,py);g.lineBetween(px,py-4,px,py+4);}break;}
   case 'soul':{g.fillStyle(f.col,(1-p)*.7);g.fillCircle(f.x,f.y-p*46,Math.max(2,f.sz*.4*(1-p*.5)));g.fillStyle(0xffffff,(1-p)*.5);g.fillCircle(f.x,f.y-p*46,Math.max(1,f.sz*.15));break;}
   }
@@ -328,16 +410,21 @@ function drawFx(g,f){
 const drawList=[];
 function render(){
   const g=gfx;g.clear();
-  LOD=enemies.length>90?2:(enemies.length>45?1:0);
+  {let c=0;for(const m of enemies)if(m.x<1300)c++;LOD=c>90?2:(c>45?1:0);}
   drawChurchFx(g);
+  for(let i=0;i<7;i++){const ph=T*.8+i*2.3,on=Math.sin(ph*3+i)>.15;if(!on)continue;
+    const ex=1180+((i*37)%95),ey=380+((i*61)%190),col=i%3===0?0xff3a3a:(i%3===1?0xffd24a:0x9aff7a);
+    glow(g,ex,ey,7,col,.5);g.fillStyle(col,.95);g.fillCircle(ex-5,ey,1.6);g.fillCircle(ex+5,ey,1.6);}
   for(const z of zones)drawZone(g,z);
   for(const w of walls)drawWall(g,w);
   for(const d of drops)drawDrop(g,d);
   drawList.length=0;
   for(const p of players)drawList.push({y:p.y,o:p,e:0});
   for(const m of enemies)drawList.push({y:m.y,o:m,e:1});
+  for(const w of minions)drawList.push({y:w.y,o:w,e:2});
+  for(const t of trees)drawList.push({y:t.y,o:t,e:3});
   drawList.sort((a,b)=>a.y-b.y);
-  for(const it of drawList){if(it.e)drawEnemy(g,it.o);else drawPlayer(g,it.o);}
+  for(const it of drawList){if(it.e===1)drawEnemy(g,it.o);else if(it.e===2){if(it.o.kind==='elephant')drawElephantM(g,it.o);else drawWolf(g,it.o);}else if(it.e===3)drawTree(g,it.o);else drawPlayer(g,it.o);}
   for(const b of projs)drawProj(g,b);
   for(const b of ebolts){glow(g,b.x,b.y,13,b.col,.9);g.fillStyle(0xffffff,.95);g.fillCircle(b.x,b.y,3.2);g.lineStyle(3,b.col,.5);g.lineBetween(b.x,b.y,b.x-b.vx*.05,b.y-b.vy*.05);}
   for(const f of fx)drawFx(g,f);

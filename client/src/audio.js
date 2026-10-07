@@ -64,6 +64,12 @@ const SFXD={
   death:{min:200,f:()=>{tone(400,.5,'sawtooth',.09,60);}},
   revive:{min:300,f:()=>{[440,554,659,880].forEach((q,i)=>tone(q,.25,'sine',.07,0,i*.07));}},
   clear:{min:600,f:()=>{[392,494,587,784].forEach((q,i)=>tone(q,.4,'triangle',.07,0,i*.1));}},
+  wolf:{min:300,f:()=>{tone(300,.5,'sawtooth',.1,520);tone(450,.4,'triangle',.06,700,.1);noiseHit(.2,.05,800,1);}},
+  tree:{min:200,f:()=>{tone(120,.35,'sine',.14,60);noiseHit(.25,.08,350,.9);tone(240,.3,'triangle',.05,360,.05);}},
+  howl:{min:600,f:()=>{tone(330,1.2,'sine',.12,520);tone(500,1.2,'triangle',.05,760,.1);}},
+  stampede:{min:800,f:()=>{for(let i=0;i<8;i++){tone(70,.18,'sine',.2,40,i*.2);noiseHit(.12,.1,200,.8,i*.2);}tone(180,.8,'sawtooth',.09,260,.1);}},
+  boar:{min:300,f:()=>{noiseHit(.5,.14,300,.8);tone(160,.6,'sawtooth',.09,90);tone(100,.4,'square',.05,70,.1);}},
+  elephant:{min:500,f:()=>{tone(180,.9,'sawtooth',.14,320);tone(260,.7,'triangle',.07,480,.15);noiseHit(.3,.07,500,.8);}},
   win:{min:1000,f:()=>{[392,523,659,784,1047].forEach((q,i)=>tone(q,.5,'triangle',.1,0,i*.14));}},
   lose:{min:1000,f:()=>{[392,330,262,196].forEach((q,i)=>tone(q,.6,'sawtooth',.08,0,i*.22));}}
 };

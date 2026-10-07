@@ -19,6 +19,7 @@ function lerpC(a,b,t){const ar=a>>16&255,ag=a>>8&255,ab=a&255,br=b>>16&255,bg=b>
 
 /* ===================== DATA ===================== */
 const CLS={
+  summoner:{name:'ซัมมอนเนอร์',icon:'🐺',col:0x7ad66a,css:'#7ad66a',hp:125,mp:150,regen:6,range:520,dmg:11,rate:.75,spd:650,pk:'orb',pr:7,role:'เรียกหมาป่า · ต้นไม้ · ช้างศึก',dmul:1.1},
   archer:{name:'นักธนู',icon:'🏹',col:0x8fd18a,css:'#8fd18a',hp:120,mp:100,regen:4.5,range:540,dmg:11,rate:.62,spd:950,pk:'arrow',pr:5,role:'ยิงต่อเนื่อง ดาเมจเดี่ยว',dmul:1},
   mage:{name:'นักเวทย์',icon:'🔥',col:0xff7a3c,css:'#ff7a3c',hp:90,mp:150,regen:6,range:500,dmg:16,rate:.95,spd:650,pk:'fire',pr:9,splash:45,role:'AOE ไฟ · บัพดาเมจทีม',dmul:1},
   gunner:{name:'นักแม่นปืน',icon:'🔫',col:0xe8c46a,css:'#e8c46a',hp:105,mp:110,regen:5,range:580,dmg:8,rate:.34,spd:1300,pk:'bullet',pr:4,role:'ยิงรัว ปืนใหญ่ เลเซอร์',dmul:1},
@@ -67,14 +68,14 @@ function waveDefBase(w){
 
 /* ===================== STATE ===================== */
 let players=[],enemies=[],projs=[],zones=[],walls=[],fx=[],popups=[],sched=[],spawnQ=[];
-let ebolts=[],gearSent=-1;
+let ebolts=[],gearSent=-1,minions=[],trees=[],mid=0;
 let T=0,speed=1,state='menu',wave=0,interT=0,churchHp=1,churchMax=1,ctl=0,targeting=-1;
 let nP=1,botsOn=true,botAll=false,classChosen=false,paused=false,shakeAmt=0,churchFlash=0,waveClock=0,bossRef=null,ann=null,chosen=[];
 let eid=0;
 const YMIN=455,YMAX=618,MV_SPEED=120;
 const SLOT={1:[[290,525]],2:[[300,490],[250,570]],3:[[300,470],[250,525],[300,580]],4:[[300,468],[250,512],[300,556],[250,600]]};
 const FRONT={1:[0],2:[0,1],3:[0,2,1],4:[0,2,1,3]};
-const PRI={tank:0,gunner:1,archer:2,mage:3,support:4};
+const PRI={tank:0,gunner:1,archer:2,mage:3,summoner:3,support:4};
 
 const C=p=>CLS[p.cls];
 const maxHp=p=>Math.round(C(p).hp*(1+CFG.hpPerLvl*(p.lvl-1))*(1+.12*p.buffs.hp)*(1+gs(p,'hp')/100))+(T<p.hpBuffUntil?p.hpBuff:0);
@@ -101,7 +102,7 @@ function toast(m){HK.toast(m);}
 function gtoast(m){HK.gtoast(m);}
 function announce(t,s,d){ann={t,s,until:T+(d||3)};}
 
-function makePlayer(i,name){return{i,name:name||('ผู้เล่น '+(i+1)),gear:[null,null,null],gold:0,pots:{hp:2,mp:1},potCd:{hp:0,mp:0},buffs:{hp:0,mp:0,dmg:0,regen:0},cls:'archer',bot:false,mv:0,x:-60,y:0,tx:0,ty:0,hp:0,mana:0,lvl:1,exp:0,sp:0,skillLv:[1,1,1,1],cd:[0,0,0,0],atkT:.3,alive:true,
+function makePlayer(i,name){return{i,name:name||('ผู้เล่น '+(i+1)),gear:[null,null,null],gold:0,pots:{hp:2,mp:1},potCd:{hp:0,mp:0},buffs:{hp:0,mp:0,dmg:0,regen:0,cdr:0},cls:'archer',bot:false,mv:0,taken:0,hasteUntil:0,hasteMul:1,x:-60,y:0,tx:0,ty:0,hp:0,mana:0,lvl:1,exp:0,sp:0,skillLv:[1,1,1,1],cd:[0,0,0,0],atkT:.3,alive:true,
   hpBuff:0,hpBuffUntil:0,buffMul:1,buffUntil:0,rapidUntil:0,invuln:0,flash:0,kills:0,dealt:0,healed:0,deaths:0,rev:null,castAnim:0,recoil:0,botT:rnd(0,.3),slot:i};}
 
 /* ===================== COMBAT HELPERS ===================== */
@@ -126,7 +127,7 @@ function hurt(m,d,own,o){
   if(!o.quiet&&(d>=40||Math.random()<.12))pop(m.x+rnd(-8,8),ecy(m)-m.size-6,Math.round(d)+(crit?'!':''),crit?'#ff6bd6':(d>=60?'#ffd36b':'#ffffff'),crit?21:(d>=60?19:14));
   if(o.slow){m.slowUntil=T+(o.slowT||2);m.slowMul=1-o.slow;}
   if(o.burn){m.burnUntil=T+(o.burnT||3);m.burnDps=o.burn;m.burnOwner=own;}
-  if(o.kb)m.x=Math.min(1350,m.x+o.kb*(m.boss?.15:1));
+  if(o.kb)m.x=Math.min(2400,m.x+o.kb*(m.boss?.15:1));
   if(m.hp<=0)kill(m);
 }
 function kill(m){
@@ -161,6 +162,7 @@ function gainExp(p,a){
 function hitPlayer(p,d){
   if(!p.alive||T<p.invuln)return;
   d*=1-Math.min(.45,gs(p,'dr')/100);
+  p.taken+=d;
   sfx('hurt',p.i);p.hp-=d;p.flash=.14;pop(p.x,p.y-62,Math.round(d),'#ff6b5e',14);gainExp(p,d*(p.cls==='tank'?.07:.03));
   if(p.hp<=0){p.hp=0;p.alive=false;p.rev=null;p.deaths++;sfx('death');ring(p.x,p.y,0xaaaaaa,60);pop(p.x,p.y-70,'ล้มแล้ว!','#ff9a8a',18);
     if(!players.some(q=>q.alive))endGame(false,'ผู้เล่นล้มครบทุกคน');}
@@ -179,6 +181,19 @@ function hitChurch(d){
 
 /* ===================== SKILLS ===================== */
 const SKILLS={
+summoner:[
+ {n:'เรียกหมาป่า',ic:'🐺',k:'self',cd:22,mp:30,ai:'wolf',d:'เรียกหมาป่า 2 ตัว อยู่จนกว่าจะตาย ตายแล้วรอคูลดาวน์เรียกใหม่เลือดเต็ม ช่วยตีและล่อให้ผีมาตี',
+  cast(p,t,l){summonMinions(p,'wolf',l);return true;}},
+ {n:'ต้นไม้หนาม',ic:'🌳',k:'point',r:90,cd:14,mp:28,ai:'tree',d:'วางต้นไม้ฟาดผีรอบตัว ชะลอ และขวางทางเดิน',
+  cast(p,t,l){
+    const hp=220+90*l,x=clamp(t.x,380,1100),y=clamp(t.y,GY0+15,GY1);
+    trees.push({id:++mid,own:p.i,x,y,hp,max:hp,until:T+10+l,tick:0,dmg:22+9*l,age:0});
+    ring(x,y,0x7ad66a,90);sfx('tree');return true;}},
+ {n:'หมูป่าพุ่งชน',ic:'🐗',k:'aim',cd:12,mp:30,ai:'lane',d:'หมูป่าพุ่งชนผีทุกตัวในแนวเส้นตรงแล้วหายไป',
+  cast(p,t,l){charge(p,t,'boar',{dur:1.1,r:55,band:68,dmg:(55+22*l)*dm(p),kb:70,daze:.6});return true;}},
+ {n:'เรียกช้าง',ic:'🐘',k:'self',cd:45,mp:60,ai:'eleph',d:'เรียกช้างศึกเลือดเยอะ ตีช้าแต่แรงและตีกระจาย ช่วยแทงค์',
+  cast(p,t,l){summonMinions(p,'elephant',l);return true;}}
+],
 archer:[
  {n:'ยิงสามทิศ',ic:'🏹',k:'auto',cd:3.2,mp:8,ai:'auto',d:'ยิงลูกศร 3 ดอกเป็นแฉก',
   cast(p,t,l){const a=aimAng(p);for(const o of[-.16,0,.16])shoot(p,a+o,{dmg:(9+4*l)*dm(p),spd:980,col:0xd9f2a8,kind:'arrow'});return true;}},
@@ -218,7 +233,7 @@ gunner:[
 ],
 support:[
  {n:'บ่อหน่วง',ic:'🌊',k:'point',r:110,cd:8,mp:24,ai:'dense',d:'สร้างบ่อเวทย์ ผีที่เดินผ่านจะช้าและโดนดาเมจต่อเนื่อง',
-  cast(p,t,l){zones.push({kind:'pond',x:t.x,y:t.y,r:110,until:T+6+.6*l,tick:0,dmg:(10+5*l)*dm(p),own:p.i,sd:Math.random()*9});ring(t.x,t.y,0x7fe0d4,110);return true;}},
+  cast(p,t,l){zones.push({kind:'pond',x:t.x,y:t.y,r:110,until:T+6+.6*l,tick:0,dmg:(7+3.5*l)*dm(p),own:p.i,sd:Math.random()*9});ring(t.x,t.y,0x7fe0d4,110);return true;}},
  {n:'ฮีลเดี่ยว',ic:'💚',k:'ally',cd:4.5,mp:20,ai:'heal1',d:'ฮีลเพื่อนที่เลือก',
   cast(p,t,l){const q=t.ally;if(!q||!q.alive)return false;healP(q,(45+18*l)*hm(p),p);return true;}},
  {n:'ฮีลหมู่',ic:'💞',k:'team',cd:14,mp:36,ai:'healAll',d:'ฮีลทุกคนทันที (ไม่เยอะ)',
@@ -238,7 +253,7 @@ tank:[
  {n:'คลื่นสะท้าน',ic:'💥',k:'self',cd:20,mp:40,ai:'shock',d:'ระเบิดพลังด้านหน้า ผีถอยหลังแล้วมึนงง',
   cast(p,t,l){const dur=1.6+.15*l;
    for(const m of enemies){if(m.dead||m.x>p.x+460)continue;hurt(m,(25+10*l)*dm(p),p.i,{});if(m.dead)continue;const bm=m.boss?.35:1;
-    m.reverseUntil=T+dur*bm;m.dazeUntil=T+dur*bm+.9*bm;m.x=Math.min(1350,m.x+60*bm);}
+    m.reverseUntil=T+dur*bm;m.dazeUntil=T+dur*bm+.9*bm;m.x=Math.min(2400,m.x+60*bm);}
    fx.push({k:'ring',x:p.x+10,y:p.y,r0:20,r1:480,col:0xaec4ff,t:0,dur:.6});shake(8);return true;}}
 ]};
 
@@ -305,7 +320,8 @@ const SHOP={
   hp:{n:'เลือดสูงสุด',ic:'❤️',d:'+12% ต่อระดับ',base:100,max:5},
   mp:{n:'มานาสูงสุด',ic:'🔷',d:'+25 ต่อระดับ',base:90,max:5},
   dmg:{n:'ดาเมจ',ic:'⚔️',d:'+8% ต่อระดับ',base:140,max:5},
-  regen:{n:'ฟื้นมานาไว',ic:'🌀',d:'+25% ต่อระดับ',base:110,max:4}
+  regen:{n:'ฟื้นมานาไว',ic:'🌀',d:'+25% ต่อระดับ',base:110,max:4},
+  cdr:{n:'ลดคูลดาวน์สกิล',ic:'⏱️',d:'-10% ต่อระดับ',base:240,max:3}
 };
 const SHOP_IDS=Object.keys(SHOP);
 function shopCost(p,id){const s=SHOP[id];return s.cost||Math.round(s.base*Math.pow(1.6,p.buffs[id]));}
@@ -348,7 +364,7 @@ function tryCast(p,i,t){
   if(p.mana<s.mp){if(p===players[ctl])toast('มานาไม่พอ');return false;}
   const r=s.cast(p,t||{x:p.x+300,y:p.y},p.skillLv[i]);
   if(r===false)return false;
-  p.mana-=s.mp;p.cd[i]=s.cd*(1-Math.min(.4,gs(p,'cdr')/100));p.castAnim=.3;sfx('cast');
+  p.mana-=s.mp;p.cd[i]=s.cd*(1-Math.min(.5,gs(p,'cdr')/100+.1*p.buffs.cdr));p.castAnim=.3;sfx('cast');
   return true;
 }
 function startRevive(p,q){
@@ -382,13 +398,18 @@ function botTarget(p,s){
     case 'healzone':{const al=aliveP();if(!al.some(q=>q.hp<maxHp(q)*.75))return null;let sx=0,sy=0;for(const q of al){sx+=q.x;sy+=q.y;}return{x:sx/al.length,y:sy/al.length};}
     case 'buff':return near.length>=4||en.some(m=>m.boss)?{x:p.x,y:p.y}:null;
     case 'wall':{const c=near.filter(m=>!m.fly&&m.x<820&&m.x>430);if(c.length<4||walls.length)return null;c.sort((a,b)=>a.x-b.x);return{x:c[0].x-70,y:525};}
+    case 'wolf':{const ws=minions.filter(w=>w.own===p.i&&w.kind==='wolf');return near.length>=(nP>1?3:1)&&(ws.length===0||ws.some(w=>w.hp<w.max*.35))?{x:p.x,y:p.y}:null;}
+    case 'eleph':return near.length>=(nP>1?4:2)&&!minions.some(w=>w.own===p.i&&w.kind==='elephant')?{x:p.x,y:p.y}:null;
+    case 'tree':{const c=near.filter(m=>!m.fly&&m.x<850&&m.x>430);if(c.length<(nP>1?3:1)||trees.length>=2)return null;c.sort((a,b)=>a.x-b.x);return{x:c[0].x-60,y:c[0].y};}
+    case 'howl':return near.length>=(nP>1?4:2)?{x:p.x,y:p.y}:null;
+    case 'lane':{const c=near.filter(m=>!m.fly);if(c.length<(nP>1?4:2))return null;let best=null,bn=0;for(const m of c){let n=0;for(const o of c)if(Math.abs(o.y-m.y)<85)n++;if(n>bn){bn=n;best=m;}}return bn>=(nP>1?4:2)?{x:p.x+200,y:best.y}:null;}
     case 'shock':return en.filter(m=>m.x<p.x+300).length>=3?{x:p.x,y:p.y}:null;
     case 'hpbuff':return near.filter(m=>m.x<800).length>=5?{x:p.x,y:p.y}:null;
   }
   return null;
 }
 function botShop(p){
-  const want=p.cls==='tank'?['hp','dmg','regen','mp']:p.cls==='support'?['regen','hp','dmg','mp']:['dmg','hp','regen','mp'];
+  const want=p.cls==='tank'?['hp','dmg','cdr','regen','mp']:p.cls==='support'?['regen','cdr','hp','dmg','mp']:['dmg','cdr','hp','regen','mp'];
   if(p.pots.hp<2&&buyItem(p,'hpPot'))return;
   if(p.pots.mp<1&&buyItem(p,'mpPot'))return;
   for(const id of want){const s=SHOP[id];if(p.buffs[id]<s.max&&p.gold>=shopCost(p,id)+40){buyItem(p,id);return;}}
@@ -412,7 +433,7 @@ function botThink(p,dt){
 function spawn(type,x,y){
   const d=EN[type],b=!!d.boss;
   const hpm=b?CFG.bossHpMul[nP]:1+CFG.hpGrow*(wave-1);
-  const m={id:++eid,type,rng:d.rng||0,x:x===undefined?(d.amb?rnd(430,640):1330+rnd(0,60)):x,y:y===undefined?(d.fly?rnd(250,360):rnd(GY0+10,GY1)):y,
+  const m={id:++eid,type,rng:d.rng||0,x:x===undefined?(d.amb?rnd(430,640):1330+Math.round(clamp(d.spd*12,250,900))+rnd(0,60)):x,y:y===undefined?(d.fly?rnd(250,360):rnd(GY0+10,GY1)):y,
     hp:d.hp*hpm,maxHp:0,spd:d.spd*rnd(.92,1.08)*(b?1:1.18),dmg:b?d.dmg:d.dmg*(1+CFG.dmgGrow*(wave-1)),dmgMul:1,cd:d.cd,atkT:rnd(0,d.cd),size:d.size,exp:d.exp,col:d.col,
     fly:!!d.fly,hop:!!d.hop,boss:b,name:d.n,h:d.h,age:rnd(0,5),ph:rnd(0,6.28),flash:0,atkAnim:0,slowUntil:0,slowMul:1,dazeUntil:0,reverseUntil:0,
     burnUntil:0,burnDps:0,burnAcc:0,burnOwner:-1,dmgBy:{},last:-1,dead:false,enraged:false,phase:0,summonT:6,boltT:9};
@@ -438,22 +459,28 @@ function stepEnemy(m,dt){
   if(T<m.burnUntil){m.burnAcc+=dt;if(m.burnAcc>=.5){m.burnAcc-=.5;hurt(m,m.burnDps*.5,m.burnOwner,{quiet:true,nocrit:true});if(m.dead)return;}}
   if(m.boss)bossStep(m,dt);
   if(m.dead)return;
-  if(T<m.reverseUntil){m.x=Math.min(1360,m.x+m.spd*1.6*dt);return;}
+  if(T<m.reverseUntil){m.x=Math.min(2400,m.x+m.spd*1.6*dt);return;}
   if(T<m.dazeUntil)return;
   const sl=T<m.slowUntil?m.slowMul:1;
   let spd=m.spd*sl*(m.enraged?1.6:1)*(1+.18*m.phase);
   if(m.hop)spd*=.15+1.9*Math.max(0,Math.sin(m.age*3.2+m.ph));
   let tgt=null,td=1e9;
   for(const p of players){if(!p.alive)continue;const d=hyp(m.x-p.x,m.y-(m.fly?p.y-30:p.y));if(d<td){td=d;tgt=p;}}
+  if(minions.length&&!m.rng){
+    let mt=null,md=1e9;
+    for(const w of minions){const d=hyp(m.x-w.x,m.y-(m.fly?w.y-30:w.y));if(d<md){md=d;mt=w;}}
+    if(mt&&md<td){tgt=mt;td=md;}
+  }
   const reach=m.size*.8+36;
   if(!m.fly){for(const w of walls){if(m.x>w.x-4&&m.x-w.x<m.size*.6+16){m.atkT-=dt;if(m.atkT<=0){m.atkT=m.cd;m.atkAnim=.22;w.hp-=m.dmg*.9;}return;}}}
-  if(m.rng&&tgt&&td<=m.rng){
+  if(!m.fly){for(const t of trees){if(m.x>t.x-4&&m.x-t.x<m.size*.6+22&&Math.abs(m.y-t.y)<42){m.atkT-=dt;if(m.atkT<=0){m.atkT=m.cd;m.atkAnim=.22;t.hp-=m.dmg*.8;}return;}}}
+  if(m.rng&&tgt&&!tgt.isM&&td<=m.rng){
     m.atkT-=dt;
     if(m.atkT<=0){m.atkT=m.cd;m.atkAnim=.22;const sx=m.x,sy=m.y-m.size*.8,dx=tgt.x-sx,dy=(tgt.y-28)-sy,L=Math.hypot(dx,dy)||1,sp=280;
       sfx('ebolt');ebolts.push({x:sx,y:sy,vx:dx/L*sp,vy:dy/L*sp,dmg:m.dmg*m.dmgMul,life:2.6,col:m.col,dead:false});}
     return;
   }
-  if(tgt&&td<=reach){m.atkT-=dt;if(m.atkT<=0){m.atkT=m.cd;m.atkAnim=.22;hitPlayer(tgt,m.dmg*m.dmgMul);}return;}
+  if(tgt&&td<=reach){m.atkT-=dt;if(m.atkT<=0){m.atkT=m.cd;m.atkAnim=.22;if(tgt.isM){tgt.hp-=m.dmg*m.dmgMul;tgt.flash=.12;}else hitPlayer(tgt,m.dmg*m.dmgMul);}return;}
   if(m.x<=CHX+reach*.6){m.atkT-=dt;if(m.atkT<=0){m.atkT=m.cd;m.atkAnim=.22;hitChurch(m.dmg*m.dmgMul*.8);}return;}
   m.x-=spd*dt;
   if(m.x<1100){const gy=tgt?(m.fly?tgt.y-30:tgt.y):(m.fly?470:540);const sy=spd*(m.fly?.8:.5)*dt+.3;m.y+=clamp(gy-m.y,-sy,sy);}
@@ -467,6 +494,66 @@ function stepEbolts(dt){
     if(!b.dead&&b.x<CHX+10){hitChurch(b.dmg*.7);b.dead=true;}
   }
   ebolts=ebolts.filter(b=>!b.dead);
+}
+function summonMinions(p,kind,l){
+  minions=minions.filter(w=>!(w.own===p.i&&w.kind===kind));
+  const lv=1+.05*(p.lvl-1);
+  if(kind==='wolf'){
+    const hp=Math.round((150+45*l)*lv);
+    for(let k=0;k<2;k++)minions.push({id:++mid,own:p.i,kind:'wolf',isM:true,x:p.x+30+k*18,y:clamp(p.y+(k?18:-18),YMIN,YMAX),hp,max:hp,dmg:14+5*l,spd:175,cd:.85,aoe:0,rch:26,atkT:0,until:Infinity,fury:0,flash:0,atkAnim:0,age:rnd(0,3),face:1,dead:false});
+    ring(p.x+30,p.y,0x7ad66a,80);sfx('wolf');
+  }else{
+    const hp=Math.round((700+230*l)*lv);
+    minions.push({id:++mid,own:p.i,kind:'elephant',isM:true,x:p.x+60,y:clamp(p.y,YMIN,YMAX),hp,max:hp,dmg:50+20*l,spd:95,cd:2,aoe:95,rch:50,atkT:0,until:T+26+3*l,fury:0,flash:0,atkAnim:0,age:rnd(0,3),face:1,dead:false});
+    ring(p.x+60,p.y,0xd8c8a0,110);sfx('elephant');
+  }
+}
+function charge(p,t,kind,o){
+  const ly=clamp(t.y,GY0+30,GY1-10),x0=p.x+40,x1=1380,hit=new Set(),steps=Math.round(o.dur/.05);
+  fx.push({k:kind,x0,x1,y:ly,t:0,dur:o.dur});sfx(kind);
+  for(let i=1;i<=steps;i++)later(i*o.dur/steps,()=>{
+    const ex=x0+(x1-x0)*(i/steps);
+    for(const m of enemies){
+      if(m.dead||m.fly||hit.has(m.id))continue;
+      if(Math.abs(m.x-ex)<o.r+m.size*.4&&Math.abs(m.y-ly)<o.band+m.size*.3){hit.add(m.id);hurt(m,o.dmg,p.i,{kb:o.kb});if(!m.dead&&!m.boss)m.dazeUntil=Math.max(m.dazeUntil,T+o.daze);}
+    }
+  });
+}
+function stepMinions(dt){
+  for(const w of minions){
+    w.age+=dt;if(w.flash>0)w.flash-=dt;if(w.atkAnim>0)w.atkAnim-=dt;
+    if(T>=w.until||w.hp<=0){w.dead=true;ring(w.x,w.y,0x7ad66a,50);continue;}
+    const ow=players[w.own],fury=T<w.fury,spd=w.spd*(fury?1.3:1),lim=ow?ow.x+640:900;
+    let tg=null,bd=1e9;
+    for(const m of enemies){
+      if(m.dead||m.x>lim||(m.fly&&Math.abs(m.y-w.y)>140))continue;
+      const d=hyp(m.x-w.x,m.y-w.y);if(d<bd){bd=d;tg=m;}
+    }
+    if(tg){
+      const reach=tg.size*.8+(w.rch||26);
+      if(bd<=reach){
+        w.atkT-=dt;
+        if(w.atkT<=0){w.atkT=w.cd;w.atkAnim=.3;const dd=w.dmg*(ow?dm(ow):1);if(w.aoe&&ow)aoe(tg.x,tg.y,w.aoe,dd,ow,{kb:25});else hurt(tg,dd,w.own,{});}
+      }else{const dx=tg.x-w.x,dy=tg.y-w.y,L=Math.hypot(dx,dy)||1,st=Math.min(spd*dt,L);w.x+=dx/L*st;w.y+=dy/L*st;w.face=dx>=0?1:-1;}
+    }else if(ow){
+      const dx=ow.x+60-w.x,dy=ow.y-w.y,L=Math.hypot(dx,dy);
+      if(L>20){w.x+=dx/L*spd*.7*dt;w.y+=dy/L*spd*.7*dt;w.face=dx>=0?1:-1;}
+    }
+    w.y=clamp(w.y,GY0,GY1);
+  }
+  minions=minions.filter(w=>!w.dead);
+}
+function stepTrees(dt){
+  for(const t of trees){
+    t.age+=dt;
+    if(T>=t.until||t.hp<=0){t.dead=true;ring(t.x,t.y,0x7ad66a,60);continue;}
+    t.tick-=dt;
+    if(t.tick<=0){
+      t.tick=.8;const ow=players[t.own];
+      for(const m of enemies){if(!m.dead&&inAOE(m,t.x,t.y,125))hurt(m,t.dmg*(ow?dm(ow):1),t.own,{slow:.35,slowT:1,quiet:Math.random()<.6});}
+    }
+  }
+  trees=trees.filter(t=>!t.dead);
 }
 function separate(){
   const n=enemies.length;
@@ -492,7 +579,7 @@ function stepPlayer(p,dt){
   p.atkT-=dt;
   if(p.atkT<=0){
     const c=C(p),e=nearestEnemy(p.x,p.y-28,c.range);
-    if(e){const a=Math.atan2(ecy(e)-(p.y-28),e.x-p.x);shoot(p,a,{dmg:c.dmg*dm(p),spd:c.spd,r:c.pr,splash:c.splash||0,col:c.col,kind:c.pk});p.recoil=.1;p.atkT=c.rate*(T<p.rapidUntil?.5:1)/(1+gs(p,'aspd')/100);}
+    if(e){const a=Math.atan2(ecy(e)-(p.y-28),e.x-p.x);shoot(p,a,{dmg:c.dmg*dm(p),spd:c.spd,r:c.pr,splash:c.splash||0,col:c.col,kind:c.pk});p.recoil=.1;p.atkT=c.rate*(T<p.rapidUntil?.5:1)/(1+gs(p,'aspd')/100)/(T<p.hasteUntil?p.hasteMul:1);}
     else p.atkT=.1;
   }
   if(p.bot||((p!==players[ctl]||botAll)&&botsOn))botThink(p,dt);
@@ -559,10 +646,11 @@ function step(dt){
   separate();
   stepProjs(dt);
   stepEbolts(dt);
+  stepMinions(dt);stepTrees(dt);
   for(const z of zones){
     if(T>=z.until){z.dead=true;continue;}
     z.tick-=dt;
-    if(z.kind==='pond'&&z.tick<=0){z.tick=.4;aoe(z.x,z.y,z.r,z.dmg,players[z.own],{slow:.5,slowT:.8,quiet:Math.random()<.65});}
+    if(z.kind==='pond'&&z.tick<=0){z.tick=.5;aoe(z.x,z.y,z.r,z.dmg,players[z.own],{slow:.5,slowT:.9,quiet:Math.random()<.65});}
     else if(z.kind==='fire'&&z.tick<=0){z.tick=.5;aoe(z.x,z.y,z.r,z.dmg,players[z.own],{quiet:Math.random()<.7});}
     else if(z.kind==='heal'&&z.tick<=0){z.tick=1;for(const q of players)if(q.alive&&hyp(q.x-z.x,(q.y-z.y)*1.7)<z.r)healP(q,z.heal,players[z.own]);}
   }
@@ -583,7 +671,7 @@ function assignSlots(){
 }
 function startGame(n,bots,names){
   nP=n;botsOn=bots;T=0;speed=1;wave=0;classChosen=false;ctl=0;targeting=-1;paused=false;ann=null;shakeAmt=0;
-  players=[];enemies=[];projs=[];ebolts=[];drops=[];gearVer=0;gearSent=-1;zones=[];walls=[];fx=[];popups=[];sched=[];spawnQ=[];bossRef=null;chosen=[];
+  players=[];enemies=[];projs=[];ebolts=[];minions=[];trees=[];drops=[];gearVer=0;gearSent=-1;zones=[];walls=[];fx=[];popups=[];sched=[];spawnQ=[];bossRef=null;chosen=[];
   for(let i=0;i<n;i++){const p=makePlayer(i,names&&names[i]);const s=SLOT[n][i];p.tx=s[0];p.ty=s[1];p.x=s[0]-120;p.y=s[1];p.hp=maxHp(p);p.mana=maxMp(p);players.push(p);}
   churchMax=churchHp=CFG.churchHp(n);
   state='intermission';interT=CFG.firstDelay;
@@ -624,7 +712,7 @@ function applyCommand(idx,m){
     case 'pick':if(Number.isFinite(m.id))pickDrop(p,m.id|0);break;
     case 'rev':startRevive(p,players[m.q]);break;
     case 'revc':p.rev=null;break;
-    case 'cls':if(state==='classSelect'&&['mage','gunner','support','tank'].includes(m.c))setChoice(idx,m.c);break;
+    case 'cls':if(state==='classSelect'&&['mage','gunner','support','tank','summoner'].includes(m.c))setChoice(idx,m.c);break;
   }
 }
 function playerBack(idx){const p=players[idx];if(!p)return;p.bot=false;p.mv=0;gtoast(p.name+' กลับเข้าห้องแล้ว');}
@@ -654,7 +742,7 @@ function buildSnaps(){
   const sfN=Object.assign({},sfxNet),sfP=Object.assign({},sfxNetP);for(const k in sfxNet)delete sfxNet[k];for(const k in sfxNetP)delete sfxNetP[k];
   out.push({t:'S',sf:sfN,sg:sfP,T:r2(T),s:state,w:wave,it:r1(interT),l:enemies.length+spawnQ.length,ch:Math.ceil(churchHp),cm:churchMax,sh:r1(shakeEvt),sp:netSpeed,cf:r2(churchFlash),
     an:ann&&T<ann.until?{t:ann.t,s:ann.s,r:r1(ann.until-T)}:null,
-    p:players.map(p=>({n:p.name,g:Math.floor(p.gold),pt:[p.pots.hp,p.pots.mp],bf:[p.buffs.hp,p.buffs.mp,p.buffs.dmg,p.buffs.regen],pc:[r1(Math.max(0,p.potCd.hp-T)),r1(Math.max(0,p.potCd.mp-T))],x:r1(p.x),y:r1(p.y),cls:p.cls,hp:r1(p.hp),mana:r1(p.mana),lvl:p.lvl,exp:r1(p.exp),sp:p.sp,sl:p.skillLv,cd:p.cd.map(r1),al:p.alive?1:0,
+    p:players.map(p=>({n:p.name,tk:Math.round(p.taken),g:Math.floor(p.gold),pt:[p.pots.hp,p.pots.mp],bf:[p.buffs.hp,p.buffs.mp,p.buffs.dmg,p.buffs.regen,p.buffs.cdr],pc:[r1(Math.max(0,p.potCd.hp-T)),r1(Math.max(0,p.potCd.mp-T))],x:r1(p.x),y:r1(p.y),cls:p.cls,hp:r1(p.hp),mana:r1(p.mana),lvl:p.lvl,exp:r1(p.exp),sp:p.sp,sl:p.skillLv,cd:p.cd.map(r1),al:p.alive?1:0,
       hb:p.hpBuff,hbu:r1(p.hpBuffUntil),bm:r2(p.buffMul),bu:r1(p.buffUntil),ru:r1(p.rapidUntil),iv:r1(p.invuln),fl:r2(p.flash),ca:r2(p.castAnim),rc:r2(p.recoil),
       rv:p.rev?[p.rev.target.i,r1(p.rev.t),p.rev.dur]:null,k:p.kills,d:Math.round(p.dealt),h:Math.round(p.healed),dt:p.deaths,sl2:p.slot})),
     z:zones.map(z=>({k:z.kind,x:r1(z.x),y:r1(z.y),r:z.r,u:r1(z.until),sd:r2(z.sd||0)})),
@@ -666,7 +754,9 @@ function buildSnaps(){
   let po=popups.slice(-10).map(a=>[r1(a.x),r1(a.y),a.txt,a.col,a.sz,r2(a.t)]);
   let eb=ebolts.slice(0,24).map(b=>[r1(b.x),r1(b.y),Math.round(b.vx),Math.round(b.vy),b.col]);
   let dr=drops.slice(0,10).map(d=>[d.id,r1(d.x),r1(d.y),d.it.r,d.it.s,d.it.n,d.it.af]);
-  const mkV=()=>({t:'V',b:pr,f:fl,po,eb,dr});
+  let mn=minions.slice(0,10).map(w=>[w.id,w.own,r1(w.x),r1(w.y),Math.max(0,Math.round(w.hp/w.max*100)),w.face,r2(w.flash),w.kind==='elephant'?1:0]);
+  let tr=trees.slice(0,6).map(t=>[t.id,r1(t.x),r1(t.y),Math.max(0,Math.round(t.hp/t.max*100)),r1(t.until-T)]);
+  const mkV=()=>({t:'V',b:pr,f:fl,po,eb,dr,mn,tr});
   let guard=0;
   while(new TextEncoder().encode(JSON.stringify(mkV())).length>3700&&guard++<30){
     if(pr.length>6)pr=pr.slice(0,pr.length-6);else if(eb.length>8)eb=eb.slice(0,eb.length-4);else if(dr.length>3)dr=dr.slice(0,dr.length-2);else if(fl.length>3)fl=fl.slice(1);else if(po.length>2)po=po.slice(1);else break;

@@ -656,7 +656,7 @@ function applyV(v){
   ebolts=(v.eb||[]).map(a=>({x:a[0],y:a[1],vx:a[2],vy:a[3],col:a[4],big:!!a[5],dead:false}));
   {const seen=new Set();
    minions=(v.mn||[]).map(a=>{let w=net.mmap.get(a[0]);if(!w){w={id:a[0],own:a[1],x:a[2],y:a[3],age:rnd(0,3),isM:true,atkAnim:0};net.mmap.set(a[0],w);}
-     w.tx=a[2];w.ty=a[3];w.hp=a[4];w.max=100;w.face=a[5];w.flash=a[6];w.kind=a[7]?'elephant':'wolf';seen.add(a[0]);return w;});
+     w.tx=a[2];w.ty=a[3];w.hp=a[4];w.max=100;w.face=a[5];w.flash=a[6];w.kind=a[7]?'elephant':'tiger';seen.add(a[0]);return w;});
    for(const id of [...net.mmap.keys()])if(!seen.has(id))net.mmap.delete(id);}
   trees=(v.tr||[]).map(a=>({id:a[0],x:a[1],y:a[2],hp:a[3],max:100,until:T+a[4],age:0}));
   fx=v.f;popups=v.po.map(a=>({x:a[0],y:a[1],txt:a[2],col:a[3],sz:a[4],t:a[5],dur:.85}));

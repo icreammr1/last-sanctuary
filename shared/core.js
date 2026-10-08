@@ -6,7 +6,7 @@ const CFG={
   churchHp:n=>650+150*n,
   countMul:{1:.45,2:.7,3:.9,4:1},      // จำนวนมอนตามจำนวนผู้เล่น
   bossHpMul:{1:.38,2:.72,3:.88,4:1},   // เลือดบอสตามจำนวนผู้เล่น
-  hpGrow:.13,dmgGrow:.1,            // มอนแรงขึ้นต่อเวฟ
+  hpGrow:.13,dmgGrow:.1,hpBase:1.6,            // มอนแรงขึ้นต่อเวฟ
   firstDelay:6,intermission:4,
   reviveTime:4.5,reviveSupport:3,reviveHp:.4,reviveBetween:true,reviveBetweenHp:.35,
   shareDmg:.5,                         // EXP: 70% ตามดาเมจที่ทำ / 30% หารเท่ากันทุกคนที่ยังรอด
@@ -19,7 +19,7 @@ function lerpC(a,b,t){const ar=a>>16&255,ag=a>>8&255,ab=a&255,br=b>>16&255,bg=b>
 
 /* ===================== DATA ===================== */
 const CLS={
-  summoner:{name:'ซัมมอนเนอร์',icon:'🐺',col:0x7ad66a,css:'#7ad66a',hp:125,mp:150,regen:6,range:520,dmg:11,rate:.75,spd:650,pk:'orb',pr:7,role:'เรียกหมาป่า · ต้นไม้ · ช้างศึก',dmul:1.1},
+  summoner:{name:'ซัมมอนเนอร์',icon:'🐺',col:0x7ad66a,css:'#7ad66a',hp:125,mp:150,regen:6,range:520,dmg:11,rate:.75,spd:650,pk:'orb',pr:7,role:'เรียกเสือ · ต้นไม้ · ช้างศึก',dmul:1.1},
   archer:{name:'นักธนู',icon:'🏹',col:0x8fd18a,css:'#8fd18a',hp:120,mp:100,regen:4.5,range:540,dmg:11,rate:.62,spd:950,pk:'arrow',pr:5,role:'ยิงต่อเนื่อง ดาเมจเดี่ยว',dmul:1},
   mage:{name:'นักเวทย์',icon:'🔥',col:0xff7a3c,css:'#ff7a3c',hp:90,mp:150,regen:6,range:500,dmg:16,rate:.95,spd:650,pk:'fire',pr:9,splash:45,role:'AOE ไฟ · บัพดาเมจทีม',dmul:1},
   gunner:{name:'นักแม่นปืน',icon:'🔫',col:0xe8c46a,css:'#e8c46a',hp:105,mp:110,regen:5,range:580,dmg:8,rate:.34,spd:1300,pk:'bullet',pr:4,role:'ยิงรัว ปืนใหญ่ เลเซอร์',dmul:1},
@@ -37,8 +37,8 @@ const EN={
   phoeng:{n:'ผีพรายเพลิง',hp:260,spd:34,dmg:20,cd:3,size:24,exp:26,col:0xff8a3a,h:64,rng:520},
   phantom:{n:'ผีอำ',hp:420,spd:95,dmg:3,cd:.6,size:20,exp:16,col:0xc7b8ff,h:56,amb:1},
   yak:{n:'ยักษ์สุสาน',hp:1500,spd:15,dmg:55,cd:2.2,size:62,exp:70,col:0x6a8f5a,h:150},
-  boss1:{n:'เปรตราชา',hp:4800,spd:21,dmg:58,cd:1.8,size:74,exp:200,col:0xe8a04a,boss:1,h:230},
-  boss2:{n:'พญาผีแห่งกรุงศรี',hp:16000,spd:19,dmg:85,cd:2,size:88,exp:600,col:0x9a6bff,boss:1,h:250}
+  boss1:{n:'เปรตราชา',hp:7000,spd:21,dmg:58,cd:1.8,size:74,exp:200,col:0xe8a04a,boss:1,h:230},
+  boss2:{n:'พญาผีแห่งกรุงศรี',hp:42000,spd:14,dmg:85,cd:2,size:88,exp:600,col:0x9a6bff,boss:1,h:250}
 };
 function waveDef(w){
   const d=waveDefBase(w),list=d.list.slice();
@@ -184,15 +184,15 @@ function hitChurch(d){
 /* ===================== SKILLS ===================== */
 const SKILLS={
 summoner:[
- {n:'เรียกหมาป่า',ic:'🐺',k:'self',cd:26,mp:30,ai:'wolf',d:'เรียกหมาป่า 2 ตัว อยู่จนกว่าจะตาย ตายแล้วรอคูลดาวน์เรียกใหม่เลือดเต็ม ช่วยตีและล่อให้ผีมาตี',
-  cast(p,t,l){summonMinions(p,'wolf',l);return true;}},
+ {n:'เรียกเสือ',ic:'🐯',k:'self',cd:26,mp:30,ai:'wolf',d:'เรียกเสือ 2 ตัว วิ่งไปตีผีทันทีจนกว่าจะตาย ไม่มีผีค่อยกลับมาหาผู้เล่น ตายแล้วรอคูลดาวน์เรียกใหม่เลือดเต็ม',
+  cast(p,t,l){summonMinions(p,'tiger',l);return true;}},
  {n:'ต้นไม้หนาม',ic:'🌳',k:'point',r:90,cd:14,mp:28,ai:'tree',d:'วางต้นไม้ฟาดผีรอบตัว ชะลอ และขวางทางเดิน',
   cast(p,t,l){
-    const hp=130+50*l,x=clamp(t.x,380,1500),y=clamp(t.y,GY0+15,GY1);
+    const hp=80+30*l,x=clamp(t.x,380,1500),y=clamp(t.y,GY0+15,GY1);
     trees.push({id:++mid,own:p.i,x,y,hp,max:hp,until:T+8+l,tick:0,dmg:22+9*l,age:0});
     ring(x,y,0x7ad66a,90);sfx('tree');return true;}},
  {n:'หมูป่าพุ่งชน',ic:'🐗',k:'aim',cd:12,mp:30,ai:'lane',d:'หมูป่าพุ่งชนผีทุกตัวในแนวเส้นตรงแล้วหายไป',
-  cast(p,t,l){charge(p,t,'boar',{dur:1.1,r:55,band:68,dmg:(55+22*l)*dm(p),kb:70,daze:.6});return true;}},
+  cast(p,t,l){charge(p,t,'boar',{dur:1.9,r:50,band:64,dmg:(26+10*l)*dm(p),kb:45,daze:.5});return true;}},
  {n:'เรียกช้าง',ic:'🐘',k:'self',cd:50,mp:60,ai:'eleph',d:'เรียกช้างศึกเลือดเยอะ ตีช้าแต่แรงและตีกระจาย ช่วยแทงค์',
   cast(p,t,l){summonMinions(p,'elephant',l);return true;}}
 ],
@@ -234,10 +234,10 @@ gunner:[
    shake(4);return true;}}
 ],
 support:[
- {n:'บ่อหน่วง',ic:'🌊',k:'point',r:110,cd:8,mp:24,ai:'dense',d:'สร้างบ่อเวทย์ ผีที่เดินผ่านจะช้าและโดนดาเมจต่อเนื่อง',
-  cast(p,t,l){zones.push({kind:'pond',x:t.x,y:t.y,r:110,until:T+6+.6*l,tick:0,dmg:(7+3.5*l)*dm(p),own:p.i,sd:Math.random()*9});ring(t.x,t.y,0x7fe0d4,110);return true;}},
- {n:'ฮีลเดี่ยว',ic:'💚',k:'ally',cd:4.5,mp:20,ai:'heal1',d:'ฮีลเพื่อนที่เลือก',
-  cast(p,t,l){const q=t.ally;if(!q||!q.alive)return false;healP(q,(45+18*l)*hm(p),p);return true;}},
+ {n:'บ่อหน่วง',ic:'☣️',k:'point',r:110,cd:8,mp:24,ai:'dense',d:'สร้างบ่อเวทย์ ผีที่เดินผ่านจะช้าและโดนดาเมจต่อเนื่อง',
+  cast(p,t,l){zones.push({kind:'pond',x:t.x,y:t.y,r:110,until:T+6+.6*l,tick:0,dmg:(3+1.5*l)*dm(p),own:p.i,sd:Math.random()*9});ring(t.x,t.y,0x7fe0d4,110);return true;}},
+ {n:'คลื่นชะลอ',ic:'🌊',k:'aim',cd:12,mp:26,ai:'lane',d:'ยิงคลื่นไม่มีดาเมจ ผ่านผีทั้งแนวแล้วทำให้ช้ามาก (AOE กว้าง)',
+  cast(p,t,l){charge(p,t,'slowwave',{dur:1.3,r:60,band:95,dmg:0,slow:.6,slowT:3.5+.5*l,air:true});return true;}},
  {n:'ฮีลหมู่',ic:'💞',k:'team',cd:14,mp:36,ai:'healAll',d:'ฮีลทุกคนทันที (ไม่เยอะ)',
   cast(p,t,l){for(const q of players)if(q.alive)healP(q,(20+8*l)*hm(p),p);return true;}},
  {n:'วงฮีล',ic:'⭕',k:'point',r:125,cd:20,mp:42,ai:'healzone',d:'วงฮีลต่อเนื่องในพื้นที่',
@@ -402,7 +402,7 @@ function botTarget(p,s){
     case 'healzone':{const al=aliveP();if(!al.some(q=>q.hp<maxHp(q)*.75))return null;let sx=0,sy=0;for(const q of al){sx+=q.x;sy+=q.y;}return{x:sx/al.length,y:sy/al.length};}
     case 'buff':return near.length>=4||en.some(m=>m.boss)?{x:p.x,y:p.y}:null;
     case 'wall':{const c=near.filter(m=>!m.fly&&m.x<820&&m.x>430);if(c.length<4||walls.length)return null;c.sort((a,b)=>a.x-b.x);return{x:c[0].x-70,y:525};}
-    case 'wolf':{const ws=minions.filter(w=>w.own===p.i&&w.kind==='wolf');return near.length>=(nP>1?3:1)&&(ws.length===0||ws.some(w=>w.hp<w.max*.35))?{x:p.x,y:p.y}:null;}
+    case 'wolf':{const ws=minions.filter(w=>w.own===p.i&&w.kind==='tiger');return near.length>=(nP>1?3:1)&&(ws.length===0||ws.some(w=>w.hp<w.max*.35))?{x:p.x,y:p.y}:null;}
     case 'eleph':return near.length>=(nP>1?4:2)&&!minions.some(w=>w.own===p.i&&w.kind==='elephant')?{x:p.x,y:p.y}:null;
     case 'tree':{const c=near.filter(m=>!m.fly&&m.x<850&&m.x>430);if(c.length<(nP>1?3:1)||trees.length>=2)return null;c.sort((a,b)=>a.x-b.x);return{x:c[0].x-60,y:c[0].y};}
     case 'howl':return near.length>=(nP>1?4:2)?{x:p.x,y:p.y}:null;
@@ -437,8 +437,8 @@ function botThink(p,dt){
 /* ===================== ENEMIES ===================== */
 function spawn(type,x,y){
   const d=EN[type],b=!!d.boss;
-  const hpm=b?CFG.bossHpMul[nP]:1+CFG.hpGrow*(wave-1);
-  const m={id:++eid,type,rng:d.rng||0,x:x===undefined?(d.amb?rnd(430,640):WW+60+Math.round(clamp(d.spd*8,160,600))+rnd(0,60)):x,y:y===undefined?(d.fly?rnd(250,360):rnd(GY0+10,GY1)):y,
+  const hpm=b?CFG.bossHpMul[nP]:CFG.hpBase*(1+CFG.hpGrow*(wave-1));
+  const m={id:++eid,type,rng:d.rng||0,x:x===undefined?(d.amb?rnd(430,640):d.boss?WW-200+rnd(0,40):WW+60+Math.round(clamp(d.spd*8,160,600))+rnd(0,60)):x,y:y===undefined?(d.fly?rnd(250,360):rnd(GY0+10,GY1)):y,
     hp:d.hp*hpm,maxHp:0,spd:d.spd*rnd(.92,1.08)*(b?1:1.18),dmg:b?d.dmg:d.dmg*(1+CFG.dmgGrow*(wave-1)),dmgMul:1,cd:d.cd,atkT:rnd(0,d.cd),size:d.size,exp:d.exp,col:d.col,
     fly:!!d.fly,hop:!!d.hop,boss:b,name:d.n,h:d.h,age:rnd(0,5),ph:rnd(0,6.28),flash:0,atkAnim:0,slowUntil:0,slowMul:1,dazeUntil:0,reverseUntil:0,
     burnUntil:0,burnDps:0,burnAcc:0,burnOwner:-1,dmgBy:{},last:-1,dead:false,enraged:false,phase:0,summonT:6,boltT:9};
@@ -452,11 +452,13 @@ function bossStep(m,dt){
       for(let i=0;i<5;i++)spawn('khamot',m.x+rnd(-30,60),rnd(GY0,GY1));}
   }else{
     const ph=m.hp<m.maxHp*.34?2:(m.hp<m.maxHp*.67?1:0);
-    if(ph>m.phase){m.phase=ph;shake(10);gtoast('พญาผีเข้าสู่ร่างที่ '+(ph+1));for(let i=0;i<6;i++)spawn('taihong',m.x+rnd(-40,80),rnd(GY0,GY1));}
+    if(ph>m.phase){m.phase=ph;gtoast('พญาผีเข้าสู่ร่างที่ '+(ph+1));for(let i=0;i<6;i++)spawn('taihong',m.x+rnd(-40,80),rnd(GY0,GY1));if(ph>=1)for(let i=0;i<2;i++)spawn('phrai',m.x+rnd(-40,60),rnd(GY0,GY1));}
     m.summonT-=dt;
-    if(m.summonT<=0){m.summonT=9-ph*1.8;const n=3+ph*2;for(let i=0;i<n;i++)spawn(Math.random()<.5?'khamot':'taihong',m.x+rnd(-40,80),rnd(GY0,GY1));ring(m.x,m.y,0x9a6bff,160);}
-    m.boltT-=dt;
-    if(m.boltT<=0&&m.x<1150){m.boltT=12-ph*2;fx.push({k:'bolt',x0:m.x,y0:m.y-110,x1:110,y1:500,t:0,dur:1.6});later(1.6,()=>{if(state!=='over')hitChurch(55+12*ph);});}
+    if(m.summonT<=0){
+      m.summonT=6-ph*1.2;const n=3+ph*2,pool=['khamot','khamot','taihong','krahang'];
+      for(let i=0;i<n;i++)spawn(pool[Math.floor(Math.random()*pool.length)],m.x+rnd(-50,90),rnd(GY0,GY1));
+      ring(m.x,m.y,0x9a6bff,160);sfx('wave');
+    }
   }
 }
 function stepEnemy(m,dt){
@@ -464,6 +466,10 @@ function stepEnemy(m,dt){
   if(T<m.burnUntil){m.burnAcc+=dt;if(m.burnAcc>=.5){m.burnAcc-=.5;hurt(m,m.burnDps*.5,m.burnOwner,{quiet:true,nocrit:true});if(m.dead)return;}}
   if(m.boss)bossStep(m,dt);
   if(m.dead)return;
+  if(m.type==='yak'){
+    m.sumT=(m.sumT===undefined?5:m.sumT)-dt;
+    if(m.sumT<=0&&m.x<WW-20&&T>=m.dazeUntil){m.sumT=12;for(let i=0;i<3;i++)spawn(i===2?'taihong':'khamot',m.x+rnd(-30,60),rnd(GY0,GY1));ring(m.x,m.y,0x6a8f5a,90);sfx('wave');}
+  }
   if(T<m.reverseUntil){m.x=Math.min(2400,m.x+m.spd*1.6*dt);return;}
   if(T<m.dazeUntil)return;
   const sl=T<m.slowUntil?m.slowMul:1;
@@ -503,10 +509,10 @@ function stepEbolts(dt){
 function summonMinions(p,kind,l){
   minions=minions.filter(w=>!(w.own===p.i&&w.kind===kind));
   const lv=1+.05*(p.lvl-1);
-  if(kind==='wolf'){
-    const hp=Math.round((95+28*l)*lv);
-    for(let k=0;k<2;k++)minions.push({id:++mid,own:p.i,kind:'wolf',isM:true,x:p.x+30+k*18,y:clamp(p.y+(k?18:-18),YMIN,YMAX),hp,max:hp,dmg:14+5*l,spd:175,cd:.85,aoe:0,rch:26,atkT:0,until:Infinity,fury:0,flash:0,atkAnim:0,age:rnd(0,3),face:1,dead:false});
-    ring(p.x+30,p.y,0x7ad66a,80);sfx('wolf');
+  if(kind==='tiger'){
+    const hp=Math.round((115+34*l)*lv);
+    for(let k=0;k<2;k++)minions.push({id:++mid,own:p.i,kind:'tiger',isM:true,x:p.x+30+k*18,y:clamp(p.y+(k?18:-18),YMIN,YMAX),hp,max:hp,dmg:16+5.5*l,spd:165,cd:.9,aoe:0,rch:26,atkT:0,until:Infinity,fury:0,flash:0,atkAnim:0,age:rnd(0,3),face:1,dead:false});
+    ring(p.x+30,p.y,0xe8a040,80);sfx('tiger');
   }else{
     const hp=Math.round((420+140*l)*lv);
     minions.push({id:++mid,own:p.i,kind:'elephant',isM:true,x:p.x+60,y:clamp(p.y,YMIN,YMAX),hp,max:hp,dmg:50+20*l,spd:95,cd:2,aoe:95,rch:50,atkT:0,until:T+20+2*l,fury:0,flash:0,atkAnim:0,age:rnd(0,3),face:1,dead:false});
@@ -519,8 +525,13 @@ function charge(p,t,kind,o){
   for(let i=1;i<=steps;i++)later(i*o.dur/steps,()=>{
     const ex=x0+(x1-x0)*(i/steps);
     for(const m of enemies){
-      if(m.dead||m.fly||hit.has(m.id))continue;
-      if(Math.abs(m.x-ex)<o.r+m.size*.4&&Math.abs(m.y-ly)<o.band+m.size*.3){hit.add(m.id);hurt(m,o.dmg,p.i,{kb:o.kb});if(!m.dead&&!m.boss)m.dazeUntil=Math.max(m.dazeUntil,T+o.daze);}
+      if(m.dead||(m.fly&&!o.air)||hit.has(m.id))continue;
+      if(Math.abs(m.x-ex)<o.r+m.size*.4&&Math.abs(m.y-ly)<o.band+m.size*.3){
+        hit.add(m.id);
+        if(o.dmg>0)hurt(m,o.dmg,p.i,{kb:o.kb||0});
+        if(!m.dead&&o.slow){m.slowUntil=Math.max(m.slowUntil,T+o.slowT);m.slowMul=Math.min(m.slowMul,1-o.slow);}
+        if(!m.dead&&o.daze&&!m.boss)m.dazeUntil=Math.max(m.dazeUntil,T+o.daze);
+      }
     }
   });
 }
@@ -528,7 +539,7 @@ function stepMinions(dt){
   for(const w of minions){
     w.age+=dt;if(w.flash>0)w.flash-=dt;if(w.atkAnim>0)w.atkAnim-=dt;
     if(T>=w.until||w.hp<=0){w.dead=true;ring(w.x,w.y,0x7ad66a,50);continue;}
-    const ow=players[w.own],fury=T<w.fury,spd=w.spd*(fury?1.3:1),lim=ow?ow.x+640:900;
+    const ow=players[w.own],fury=T<w.fury,spd=w.spd*(fury?1.3:1),lim=WW-60;
     let tg=null,bd=1e9;
     for(const m of enemies){
       if(m.dead||m.x>lim||(m.fly&&Math.abs(m.y-w.y)>140))continue;

@@ -290,22 +290,27 @@ function drawWall(g,w){
   g.fillStyle(0xe8b85a,.9*fade);g.fillRect(x-15,GY0-32,30,6);
   g.fillStyle(0,.6);g.fillRect(x-20,GY0-48,40,5);g.fillStyle(0x7fe0d4,1);g.fillRect(x-20,GY0-48,40*Math.max(0,w.hp/w.max),5);
 }
-function drawWolf(g,w){
-  const x=w.x,y=w.y,f=w.face||1,a=w.age,run=Math.sin(a*16)*4,fl=w.flash>0,col=fl?0xffffff:0x8f9f90,fury=w.fury>0&&(w.fury>T||w.fury===1);
-  shadow(g,x,y,44);
-  if(fury)glow(g,x,y-18,32,0xff6a3a,.45);
-  g.lineStyle(4,fl?0xffffff:0x56655a,1);
-  g.lineBetween(x-f*12,y-12,x-f*14+run*f,y);g.lineBetween(x-f*6,y-12,x-f*6-run*f,y);
-  g.lineBetween(x+f*10,y-12,x+f*12-run*f,y);g.lineBetween(x+f*16,y-12,x+f*18+run*f,y);
-  g.fillStyle(col,1);g.fillEllipse(x,y-20,42,20);
-  g.fillStyle(fl?0xffffff:0xb5c5b5,1);g.fillEllipse(x+f*4,y-15,26,9);
-  g.lineStyle(5,fl?0xffffff:0x7a8a7c,1);g.beginPath();g.moveTo(x-f*20,y-22);g.lineTo(x-f*30,y-30+Math.sin(a*10)*3);g.strokePath();
-  g.fillStyle(col,1);g.fillCircle(x+f*22,y-25,9);
-  g.fillTriangle(x+f*30,y-26,x+f*38,y-22,x+f*30,y-20);
-  g.fillTriangle(x+f*16,y-31,x+f*19,y-40,x+f*23,y-31);g.fillTriangle(x+f*22,y-31,x+f*26,y-39,x+f*28,y-30);
-  glow(g,x+f*24,y-27,7,0xffd24a,.7);g.fillStyle(0xffe27a,1);g.fillCircle(x+f*24,y-27,1.8);
-  if(w.atkAnim>0){g.fillStyle(0xffffff,1);g.fillTriangle(x+f*34,y-21,x+f*36,y-21,x+f*35,y-17);}
-  const bw=34;g.fillStyle(0,.6);g.fillRect(x-bw/2,y-50,bw,4);g.fillStyle(0x7ad66a,1);g.fillRect(x-bw/2,y-50,bw*Math.max(0,w.hp/w.max),4);
+function drawTiger(g,w){
+  const x=w.x,y=w.y,f=w.face||1,a=w.age,run=Math.sin(a*14)*4,fl=w.flash>0,col=fl?0xffffff:0xd9822b,dark=fl?0xffffff:0x2a1608;
+  shadow(g,x,y,56);
+  g.lineStyle(6,fl?0xffffff:0xb86a1e,1);
+  g.lineBetween(x-f*15,y-14,x-f*17+run*f,y);g.lineBetween(x-f*7,y-14,x-f*7-run*f,y);
+  g.lineBetween(x+f*13,y-14,x+f*15-run*f,y);g.lineBetween(x+f*21,y-14,x+f*23+run*f,y);
+  g.fillStyle(col,1);g.fillEllipse(x,y-24,56,26);
+  g.fillStyle(fl?0xffffff:0xf4d9a8,1);g.fillEllipse(x+f*4,y-17,34,11);
+  g.lineStyle(3.5,dark,1);
+  for(let i=0;i<5;i++){const sx=x-f*20+i*f*9;g.beginPath();g.moveTo(sx,y-36);g.lineTo(sx+f*3,y-25);g.strokePath();}
+  g.lineStyle(7,fl?0xffffff:0xc7761f,1);g.beginPath();g.moveTo(x-f*27,y-27);g.lineTo(x-f*42,y-36+Math.sin(a*8)*4);g.lineTo(x-f*50,y-28+Math.sin(a*8)*5);g.strokePath();
+  g.lineStyle(3,dark,1);g.lineBetween(x-f*40,y-35,x-f*38,y-30);g.lineBetween(x-f*46,y-33,x-f*44,y-28);
+  g.fillStyle(col,1);g.fillCircle(x+f*30,y-30,12);
+  g.fillStyle(fl?0xffffff:0xf4d9a8,1);g.fillEllipse(x+f*38,y-26,16,10);
+  g.fillStyle(col,1);g.fillCircle(x+f*23,y-39,4.5);g.fillCircle(x+f*34,y-40,4.5);
+  g.lineStyle(2.5,dark,1);g.lineBetween(x+f*24,y-39,x+f*25,y-32);g.lineBetween(x+f*29,y-41,x+f*30,y-35);g.lineBetween(x+f*34,y-40,x+f*34,y-34);
+  glow(g,x+f*33,y-32,8,0xffe27a,.7);g.fillStyle(0x201000,1);g.fillCircle(x+f*33,y-32,1.8);
+  g.fillStyle(0x201000,1);g.fillCircle(x+f*44,y-28,2);
+  g.lineStyle(1,0xffffff,.8);g.lineBetween(x+f*40,y-25,x+f*52,y-27);g.lineBetween(x+f*40,y-23,x+f*52,y-22);
+  if(w.atkAnim>0){g.fillStyle(0xffffff,1);g.fillTriangle(x+f*42,y-22,x+f*45,y-22,x+f*43.5,y-17);g.fillTriangle(x+f*47,y-22,x+f*50,y-22,x+f*48.5,y-17);}
+  const bw=40;g.fillStyle(0,.6);g.fillRect(x-bw/2,y-58,bw,4);g.fillStyle(0x7ad66a,1);g.fillRect(x-bw/2,y-58,bw*Math.max(0,w.hp/w.max),4);
 }
 function drawElephantM(g,w){
   const x=w.x,y=w.y,f=w.face||1,a=w.age,st=Math.sin(a*6)*4,fl=w.flash>0,body=fl?0xffffff:0x76726e,swing=w.atkAnim>0?Math.sin(w.atkAnim/.3*Math.PI)*26:0;
@@ -322,17 +327,40 @@ function drawElephantM(g,w){
   const bw=70;g.fillStyle(0,.6);g.fillRect(x-bw/2,y-128,bw,5);g.fillStyle(0x7ad66a,1);g.fillRect(x-bw/2,y-128,bw*Math.max(0,w.hp/w.max),5);
 }
 function drawTree(g,t){
-  const fade=Math.min(1,Math.max(0,(t.until-T)/.6)),x=t.x,y=t.y,a=t.age,sw=Math.sin(a*5)*10;
-  shadow(g,x,y,70);
-  g.fillStyle(0x4a2f1c,fade);g.fillTriangle(x-12,y,x+12,y,x+5,y-62);g.fillTriangle(x-12,y,x+5,y-62,x-5,y-62);
-  g.fillStyle(0x2d6a34,fade);g.fillCircle(x,y-78,30);g.fillCircle(x-22,y-64,20);g.fillCircle(x+22,y-64,20);
-  g.fillStyle(0x3f8f48,fade);g.fillCircle(x-6,y-86,20);
-  g.lineStyle(5,0x4a2f1c,fade);
-  g.beginPath();g.moveTo(x-8,y-56);g.lineTo(x-46+sw,y-40);g.lineTo(x-66+sw*1.6,y-24);g.strokePath();
-  g.beginPath();g.moveTo(x+8,y-56);g.lineTo(x+46-sw,y-40);g.lineTo(x+66-sw*1.6,y-24);g.strokePath();
-  g.fillStyle(0x9aff7a,fade*.8);g.fillCircle(x-66+sw*1.6,y-24,4);g.fillCircle(x+66-sw*1.6,y-24,4);
-  g.lineStyle(1.5,0x9aff7a,fade*.35);g.strokeEllipse(x,y,250,146);
-  g.fillStyle(0,.6);g.fillRect(x-20,y-116,40,4);g.fillStyle(0x7ad66a,1);g.fillRect(x-20,y-116,40*Math.max(0,t.hp/t.max),4);
+  const fade=Math.min(1,Math.max(0,(t.until-T)/.6)),x=t.x,y=t.y,a=t.age;
+  const cyc=(a%.8)/.8,lash=cyc<.3?Math.sin(cyc/.3*Math.PI):0;
+  shadow(g,x,y,84);
+  // รากบิดเบี้ยวชอนขึ้นจากดิน
+  g.lineStyle(9,0x1f130b,fade);
+  for(const d of[-1,1]){g.beginPath();g.moveTo(x+d*4,y-8);g.lineTo(x+d*26,y-2);g.lineTo(x+d*50,y+6);g.strokePath();}
+  // ลำต้นไม้เก่าบิดเป็นเกลียว
+  g.lineStyle(26,0x1a0f08,fade);g.beginPath();g.moveTo(x,y);g.lineTo(x-9,y-32);g.lineTo(x+8,y-64);g.lineTo(x-3,y-98);g.strokePath();
+  g.lineStyle(16,0x3a2616,fade);g.beginPath();g.moveTo(x+2,y);g.lineTo(x-7,y-32);g.lineTo(x+9,y-64);g.lineTo(x-1,y-98);g.strokePath();
+  g.lineStyle(2,0x120a05,fade*.9);for(let i=0;i<6;i++){g.beginPath();g.moveTo(x-8+(i%3)*6,y-10-i*14);g.lineTo(x-4+(i%3)*6,y-22-i*14);g.strokePath();}
+  // ปุ่มไม้เป็นใบหน้าน่ากลัว
+  glow(g,x-1,y-52,10,0xff3a2a,.45*fade);g.fillStyle(0xff4a2a,fade);g.fillCircle(x-6,y-55,2.2);g.fillCircle(x+4,y-55,2.2);
+  g.fillStyle(0x0a0504,fade);g.fillTriangle(x-6,y-46,x+5,y-46,x-1,y-40);
+  // กิ่งแห้งหักๆ
+  g.lineStyle(7,0x1f130b,fade);
+  g.beginPath();g.moveTo(x-2,y-92);g.lineTo(x-26,y-108);g.lineTo(x-42,y-104);g.strokePath();
+  g.beginPath();g.moveTo(x+2,y-86);g.lineTo(x+28,y-104);g.lineTo(x+40,y-118);g.strokePath();
+  g.fillStyle(0x23472a,fade*.85);g.fillCircle(x-34,y-106,9);g.fillCircle(x+36,y-112,8);g.fillCircle(x,y-104,10);
+  // เถาวัลย์หนามฟาด (แกว่งเบาๆ แล้วฟาดเป็นจังหวะ)
+  for(let v=0;v<5;v++){
+    const dir=v%2?1:-1,by=y-62-(v>>1)*20,ang=-.25+(v*.18),len=50+lash*70+(v%3)*8;
+    const pts=[];
+    for(let sgm=0;sgm<=6;sgm++){
+      const u2=sgm/6,sway=Math.sin(a*3+v*1.7+sgm*.9)*(10*(1-lash)+3);
+      pts.push([x+dir*(8+u2*len),by+Math.sin(ang)*u2*len*(dir>0?1:1)+sway*u2-lash*u2*14]);
+    }
+    g.lineStyle(5-1*(v%2),0x2c5a22,fade);g.beginPath();g.moveTo(pts[0][0],pts[0][1]);for(let k=1;k<pts.length;k++)g.lineTo(pts[k][0],pts[k][1]);g.strokePath();
+    g.fillStyle(0x9a2a1a,fade);
+    for(let k=1;k<pts.length;k++){const p0=pts[k];g.fillTriangle(p0[0]-2,p0[1],p0[0]+2,p0[1],p0[0],p0[1]-6);}
+    const tip=pts[pts.length-1];g.fillStyle(0xd8e8c0,fade);g.fillTriangle(tip[0]-3,tip[1]-3,tip[0]+3,tip[1]+3,tip[0]+dir*10,tip[1]-2);
+    if(lash>.4){g.lineStyle(2,0xd8ffb0,fade*lash*.5);g.lineBetween(tip[0],tip[1],tip[0]+dir*18,tip[1]);}
+  }
+  g.lineStyle(1.5,0x7ad66a,fade*(.2+lash*.4));g.strokeEllipse(x,y,250,146);
+  g.fillStyle(0,.6);g.fillRect(x-20,y-128,40,4);g.fillStyle(0x7ad66a,1);g.fillRect(x-20,y-128,40*Math.max(0,t.hp/t.max),4);
 }
 function drawDrop(g,d){
   const col=[0xcfcfcf,0x5aa8ff,0xc06bff,0xffb23a][d.it.r],bob=Math.sin(T*4+d.id)*3,x=d.x,y=d.y;
@@ -388,6 +416,15 @@ function drawFx(g,f){
   case 'beam':{const w=40*(1-p);g.lineStyle(w*1.8,f.col,.25*(1-p));g.lineBetween(f.x0,f.y0,f.x1,f.y1);g.lineStyle(w,f.col,.7*(1-p*.5));g.lineBetween(f.x0,f.y0,f.x1,f.y1);g.lineStyle(w*.35,0xffffff,1-p);g.lineBetween(f.x0,f.y0,f.x1,f.y1);break;}
   case 'bolt':{if(p<.8){const r=10+p*30;glow(g,f.x0,f.y0,r*1.6,0x9a6bff,.8);g.fillStyle(0xffffff,.8);g.fillCircle(f.x0,f.y0,r*.3);g.lineStyle(2,0x9a6bff,.35);g.lineBetween(f.x0,f.y0,f.x1,f.y1);}
     else{const a=(p-.8)/.2;g.lineStyle(16*(1-a),0x9a6bff,.7);g.lineBetween(f.x0,f.y0,f.x1,f.y1);g.lineStyle(5*(1-a),0xffffff,1);g.lineBetween(f.x0,f.y0,f.x1,f.y1);}break;}
+  case 'slowwave':{
+    const wx=f.x0+(f.x1-f.x0)*p,y=f.y,fade=p>.92?(1-p)*12:1;
+    for(let k=0;k<4;k++){
+      const off=k*26,al=(.75-k*.15)*fade,rr=48+k*14+Math.sin(f.t*12+k)*3;
+      g.lineStyle(7-k,0x7fe0d4,al);g.beginPath();g.arc(wx-off,y-30,rr,-1.0,1.0,false);g.strokePath();
+      g.lineStyle(2,0xeaffff,al*.7);g.beginPath();g.arc(wx-off+4,y-30,rr-6,-.9,.9,false);g.strokePath();
+    }
+    g.fillStyle(0x7fe0d4,.08*fade);g.fillEllipse(wx-30,y-4,200,52);
+    break;}
   case 'boar':{
     const bx=f.x0+(f.x1-f.x0)*p,y=f.y,st=Math.sin(f.t*30)*5,fade=p>.9?(1-p)*10:1;
     shadow(g,bx,y,90);
@@ -420,7 +457,7 @@ function render(){
   for(const w of minions)drawList.push({y:w.y,o:w,e:2});
   for(const t of trees)drawList.push({y:t.y,o:t,e:3});
   drawList.sort((a,b)=>a.y-b.y);
-  for(const it of drawList){if(it.e===1)drawEnemy(g,it.o);else if(it.e===2){if(it.o.kind==='elephant')drawElephantM(g,it.o);else drawWolf(g,it.o);}else if(it.e===3)drawTree(g,it.o);else drawPlayer(g,it.o);}
+  for(const it of drawList){if(it.e===1)drawEnemy(g,it.o);else if(it.e===2){if(it.o.kind==='elephant')drawElephantM(g,it.o);else drawTiger(g,it.o);}else if(it.e===3)drawTree(g,it.o);else drawPlayer(g,it.o);}
   for(const b of projs)drawProj(g,b);
   for(const b of ebolts){const big=!!b.big;glow(g,b.x,b.y,big?26:13,b.col,.9);g.fillStyle(0xffffff,.95);g.fillCircle(b.x,b.y,big?6:3.2);g.lineStyle(big?6:3,b.col,.55);g.lineBetween(b.x,b.y,b.x-b.vx*(big?.09:.05),b.y-b.vy*(big?.09:.05));}
   for(const f of fx)drawFx(g,f);

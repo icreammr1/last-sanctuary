@@ -47,7 +47,7 @@ function renderDropTip(){
   const R=RAR[best.it.r];
   const html='<b style="color:'+R.c+'">'+SLOTS[best.it.s].ic+' '+best.it.n+' · '+R.n+'</b>'+best.it.af.map(afxText).join('<br>')+'<br><small>คลิกเพื่อเก็บ</small>';
   if(t._h!==html){t._h=html;t.innerHTML=html;}
-  t._v=1;t.style.display='block';t.style.left=(mouse.x/W*100)+'%';t.style.top=(mouse.y/H*100)+'%';
+  t._v=1;t.style.display='block';t.style.left=(mouse.sx/W*100)+'%';t.style.top=(mouse.y/H*100)+'%';
 }
 function sOrb(el,f,html){
   f=Math.round(clamp(f,0,1)*100)/100;
@@ -58,13 +58,14 @@ let shopOpen=false,shopSig='';
 function toggleShop(){shopOpen=!shopOpen;$('shop').style.display=shopOpen?'block':'none';shopSig='';}
 function renderShop(p){
   if(!shopOpen)return;
-  const sig=Math.floor(p.gold)+'|'+p.pots.hp+p.pots.mp+'|'+p.buffs.hp+p.buffs.mp+p.buffs.dmg+p.buffs.regen;
+  const sig=Math.floor(p.gold)+'|'+p.pots.hp+p.pots.mp+'|'+p.buffs.hp+p.buffs.mp+p.buffs.dmg+p.buffs.regen+p.buffs.cdr+'|'+Math.round(churchHp/Math.max(1,churchMax)*100)+'|'+churchRepairs+'|'+wave;
   if(sig===shopSig)return;shopSig=sig;
   let h='<div class="hd"><b>ร้านค้า (B ปิด)</b><span>🪙 '+Math.floor(p.gold)+'</span></div>';
   for(const id of SHOP_IDS){
-    const s=SHOP[id],c=shopCost(p,id),pot=id==='hpPot'||id==='mpPot';
-    const cur=pot?p.pots[id==='hpPot'?'hp':'mp']:p.buffs[id],mx=pot?s.cap:s.max,maxed=cur>=mx;
-    h+='<div class="srow"><span class="si">'+s.ic+'</span><span class="st2">'+s.n+' <small>'+s.d+' · '+cur+'/'+mx+'</small></span><button data-id="'+id+'"'+(maxed||p.gold<c?' disabled':'')+'>'+(maxed?'เต็ม':'🪙 '+c)+'</button></div>';
+    const s=SHOP[id],c=shopCost(p,id),pot=id==='hpPot'||id==='mpPot',rpr=id==='repair';
+    const cur=rpr?0:(pot?p.pots[id==='hpPot'?'hp':'mp']:p.buffs[id]),mx=pot?s.cap:s.max,maxed=rpr?churchHp>=churchMax:cur>=mx;
+    const info=rpr?('โบสถ์ '+Math.round(churchHp/Math.max(1,churchMax)*100)+'%'):(cur+'/'+mx);
+    h+='<div class="srow"><span class="si">'+s.ic+'</span><span class="st2">'+s.n+' <small>'+s.d+' · '+info+'</small></span><button data-id="'+id+'"'+(maxed||p.gold<c?' disabled':'')+'>'+(maxed?'เต็ม':'🪙 '+c)+'</button></div>';
   }
   const el=$('shop');el.innerHTML=h;
   el.querySelectorAll('button[data-id]').forEach(b=>{b.onclick=()=>buyCmd(b.dataset.id);});
@@ -189,10 +190,19 @@ function skipWave(){
 }
 function updMouse(e){
   const r=canvas.getBoundingClientRect();
-  mouse.x=(e.clientX-r.left)/r.width*W;mouse.y=(e.clientY-r.top)/r.height*H;
+  mouse.sx=(e.clientX-r.left)/r.width*W;mouse.x=mouse.sx+camX;mouse.y=(e.clientY-r.top)/r.height*H;mouse.in=true;
 }
 /* ---- เดินขึ้น/ลง (W/S หรือลูกศร หรือปุ่มบนจอ) ---- */
-const held={up:false,down:false};let lastMv=0;
+const held={up:false,down:false},camHeld={l:false,r:false};let lastMv=0;
+function updateCam(dt){
+  let d=(camHeld.r?1:0)-(camHeld.l?1:0);
+  if(!d&&mouse.in){if(mouse.sx<22)d=-1;else if(mouse.sx>W-22)d=1;}
+  if(paused||state==='menu'||state==='over'||state==='classSelect')d=0;
+  camX=clamp(camX+d*640*dt,0,WW-W);
+  scene.cameras.main.centerOn(W/2+camX,H/2);
+  let far=0;for(const m of enemies)if(m.x>camX+W+10)far++;
+  const fi=$('farInd');sT(fi,far?('▶ ผีกำลังมา '+far+' (เลื่อนจอ D / →)'):'');sD(fi,far&&camX<WW-W?'block':'none');
+}
 function applyMove(){
   let d=(held.down?1:0)-(held.up?1:0);
   if(paused||state==='menu'||state==='over'||state==='classSelect')d=0;
@@ -204,24 +214,29 @@ function applyMove(){
 }
 function bindMove(){
   window.addEventListener('keydown',e=>{
-    if(e.code==='KeyW'||e.code==='ArrowUp'){held.up=true;e.preventDefault();}
+    if(e.code==='KeyA'||e.code==='ArrowLeft'){camHeld.l=true;e.preventDefault();}
+    else if(e.code==='KeyD'||e.code==='ArrowRight'){camHeld.r=true;e.preventDefault();}
+    else if(e.code==='KeyW'||e.code==='ArrowUp'){held.up=true;e.preventDefault();}
     else if(e.code==='KeyS'||e.code==='ArrowDown'){held.down=true;e.preventDefault();}
   });
   window.addEventListener('keyup',e=>{
-    if(e.code==='KeyW'||e.code==='ArrowUp')held.up=false;
+    if(e.code==='KeyA'||e.code==='ArrowLeft')camHeld.l=false;
+    else if(e.code==='KeyD'||e.code==='ArrowRight')camHeld.r=false;
+    else if(e.code==='KeyW'||e.code==='ArrowUp')held.up=false;
     else if(e.code==='KeyS'||e.code==='ArrowDown')held.down=false;
   });
-  window.addEventListener('blur',()=>{held.up=held.down=false;});
+  window.addEventListener('blur',()=>{held.up=held.down=false;camHeld.l=camHeld.r=false;});
   const hold=(id,k)=>{const b=$(id);const on=e=>{held[k]=true;e.preventDefault();},off=()=>{held[k]=false;};
     b.addEventListener('pointerdown',on);b.addEventListener('pointerup',off);b.addEventListener('pointerleave',off);b.addEventListener('pointercancel',off);};
   hold('mvUp','up');hold('mvDown','down');
+  for(const [id,k] of [['camL','l'],['camR','r']]){const b=$(id);const on=e=>{camHeld[k]=true;e.preventDefault();},off=()=>{camHeld[k]=false;};b.addEventListener('pointerdown',on);b.addEventListener('pointerup',off);b.addEventListener('pointerleave',off);b.addEventListener('pointercancel',off);}
   $('bSound').onclick=()=>{audInit();audToggle();$('bSound').textContent='เสียง: '+SND_NAME[AUD.mode];};
   $('bSound').textContent='เสียง: '+SND_NAME[AUD.mode];
 }
 function bindInput(){
   bindMove();
   ['pointerdown','keydown'].forEach(ev=>window.addEventListener(ev,()=>audInit(),{passive:true}));
-  canvas.addEventListener('pointermove',updMouse);
+  $('stage').addEventListener('pointermove',updMouse);$('stage').addEventListener('pointerleave',()=>{mouse.in=false;});
   canvas.addEventListener('contextmenu',e=>e.preventDefault());
   canvas.addEventListener('pointerdown',e=>{
     updMouse(e);
@@ -273,8 +288,8 @@ function create(){
     const t=this.add.text(0,0,'',{fontFamily:'Arial, sans-serif',fontSize:'16px',fontStyle:'bold',color:'#ffffff',stroke:'#000000',strokeThickness:3}).setDepth(5).setOrigin(.5,1).setVisible(false).setResolution(RS);
     popPool.push(t);
   }
-  for(let i=0;i<70;i++)embers.push({x:rnd(0,W),y:rnd(0,H),vx:rnd(-22,-6),vy:rnd(-46,-12),s:rnd(1,2.6),ph:rnd(0,6.28)});
-  for(let i=0;i<6;i++)fogs.push({x:rnd(0,W),y:rnd(540,660),w:rnd(500,900),h:rnd(50,90),a:.05,v:rnd(-14,14)});
+  for(let i=0;i<70;i++)embers.push({x:rnd(0,WW),y:rnd(0,H),vx:rnd(-22,-6),vy:rnd(-46,-12),s:rnd(1,2.6),ph:rnd(0,6.28)});
+  for(let i=0;i<6;i++)fogs.push({x:rnd(0,WW),y:rnd(540,660),w:rnd(500,900),h:rnd(50,90),a:.05,v:rnd(-14,14)});
   canvas=this.game.canvas;
   this.cameras.main.setZoom(RS);this.cameras.main.centerOn(W/2,H/2);
   bindInput();
@@ -286,7 +301,7 @@ function update(time,delta){
     if(!paused&&(state==='intermission'||state==='wave')){for(let k=0;k<speed;k++)step(dt);}
     if(net.role==='host'&&net.started&&state!=='over'){net.acc+=dt;if(net.acc>=1/(net.tp==='room'?8:15)){net.acc=0;netSnap();}}
   }
-  applyMove();
+  applyMove();updateCam(dt);
   if(net.role!=='guest'){const sl=drainLocalSfx();playSfxSets(sl[0],sl[1],ctl);}
   ambient(dt);
   render();
@@ -564,7 +579,7 @@ function joinViaPeer(code){
   peer.on('error',e=>lobStatus(e.type==='peer-unavailable'?'ไม่พบห้องนี้ ตรวจรหัสอีกครั้ง':'เชื่อมต่อผิดพลาด ('+e.type+')'));
 }
 function guestStart(n,idx){
-  nP=n;ctl=idx;net.idx=idx;net.started=true;net.emap=new Map();net.mmap=new Map();minions=[];trees=[];
+  camX=0;nP=n;ctl=idx;net.idx=idx;net.started=true;net.emap=new Map();net.mmap=new Map();minions=[];trees=[];
   state='intermission';T=0;wave=0;players=[];enemies=[];projs=[];zones=[];walls=[];fx=[];popups=[];sched=[];spawnQ=[];bossRef=null;ann=null;
   classChosen=false;targeting=-1;paused=false;shakeAmt=0;skillKey='';
   $('mLobby').classList.add('hide');$('mMenu').classList.add('hide');$('mEnd').classList.add('hide');$('mClass').classList.add('hide');
@@ -586,7 +601,7 @@ function onHostMsg(m){
 }
 function applyS(s){
   if(state==='over')return;
-  playSfxSets(s.sf||{},s.sg||{},ctl);
+  playSfxSets(s.sf||{},s.sg||{},ctl);churchRepairs=s.cr||0;
   if(players.length!==s.p.length){players=s.p.map((_,i)=>makePlayer(i));buildParty();skillKey='';}
   s.p.forEach((a,i)=>{
     const p=players[i];
@@ -638,7 +653,7 @@ function applyV(v){
   if(state==='over')return;
   drops=(v.dr||[]).map(a=>({id:a[0],x:a[1],y:a[2],it:{r:a[3],s:a[4],n:a[5],af:a[6]}}));
   projs=v.b.map(a=>({x:a[0],y:a[1],vx:a[2],vy:a[3],kind:a[4],col:a[5],r:a[6],dead:false}));
-  ebolts=(v.eb||[]).map(a=>({x:a[0],y:a[1],vx:a[2],vy:a[3],col:a[4],dead:false}));
+  ebolts=(v.eb||[]).map(a=>({x:a[0],y:a[1],vx:a[2],vy:a[3],col:a[4],big:!!a[5],dead:false}));
   {const seen=new Set();
    minions=(v.mn||[]).map(a=>{let w=net.mmap.get(a[0]);if(!w){w={id:a[0],own:a[1],x:a[2],y:a[3],age:rnd(0,3),isM:true,atkAnim:0};net.mmap.set(a[0],w);}
      w.tx=a[2];w.ty=a[3];w.hp=a[4];w.max=100;w.face=a[5];w.flash=a[6];w.kind=a[7]?'elephant':'wolf';seen.add(a[0]);return w;});

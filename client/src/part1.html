@@ -120,6 +120,11 @@ body{height:100%;margin:0;background:var(--page-bg);color:var(--ink);font-family
 #dtip{position:absolute;display:none;pointer-events:none;padding:.5cqw .7cqw;font-size:.9em;max-width:20cqw;z-index:6;transform:translate(1cqw,-110%)}
 #dtip b{display:block;margin-bottom:.15cqw}
 #conn{position:absolute;top:1.2cqw;left:50%;transform:translateX(-50%);display:none;z-index:30;padding:.6cqw 1.4cqw;color:var(--gold-2);font-weight:700}
+.camb{position:absolute;top:36%;width:3.2cqw;height:12cqw;border:0;font:inherit;font-size:1.3em;color:var(--gold-2);background:linear-gradient(90deg,rgba(0,0,0,.4),transparent);cursor:pointer;opacity:.55;pointer-events:auto;touch-action:none}
+#camL{left:0}#camR{right:0;background:linear-gradient(270deg,rgba(0,0,0,.4),transparent)}
+.camb:hover,.camb:active{opacity:1}
+#farInd{position:absolute;right:3.6cqw;top:28%;padding:.35cqw .8cqw;font-weight:700;color:#ffb27a;display:none;animation:pulse 1.2s ease-in-out infinite}
+#shop{overflow:auto}
 #xp{position:absolute;left:0;right:0;bottom:0;height:.45cqw;background:rgba(0,0,0,.55)}
 #xp i{display:block;height:100%;transform-origin:left;background:var(--gold);transition:transform .2s}
 .modal{position:absolute;inset:0;display:grid;place-items:center;z-index:20;pointer-events:auto;overflow:auto;background:radial-gradient(ellipse at 50% 40%,rgba(34,12,8,.5),rgba(3,1,1,.9))}
@@ -196,6 +201,8 @@ table.res th{color:var(--muted);font-weight:600}
     <div id="skills"></div>
     <div id="mv" class="ia"><button class="mvb" id="mvUp" aria-label="เดินขึ้น">▲</button><button class="mvb" id="mvDown" aria-label="เดินลง">▼</button></div>
     <div id="hint"></div>
+    <button id="camL" class="camb">◀</button><button id="camR" class="camb">▶</button>
+    <div id="farInd" class="panel"></div>
     <div id="xp"><i id="xpBar"></i></div>
   </div>
 

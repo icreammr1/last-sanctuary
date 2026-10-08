@@ -120,6 +120,11 @@ body{height:100%;margin:0;background:var(--page-bg);color:var(--ink);font-family
 #dtip{position:absolute;display:none;pointer-events:none;padding:.5cqw .7cqw;font-size:.9em;max-width:20cqw;z-index:6;transform:translate(1cqw,-110%)}
 #dtip b{display:block;margin-bottom:.15cqw}
 #conn{position:absolute;top:1.2cqw;left:50%;transform:translateX(-50%);display:none;z-index:30;padding:.6cqw 1.4cqw;color:var(--gold-2);font-weight:700}
+.camb{position:absolute;top:36%;width:3.2cqw;height:12cqw;border:0;font:inherit;font-size:1.3em;color:var(--gold-2);background:linear-gradient(90deg,rgba(0,0,0,.4),transparent);cursor:pointer;opacity:.55;pointer-events:auto;touch-action:none}
+#camL{left:0}#camR{right:0;background:linear-gradient(270deg,rgba(0,0,0,.4),transparent)}
+.camb:hover,.camb:active{opacity:1}
+#farInd{position:absolute;right:3.6cqw;top:28%;padding:.35cqw .8cqw;font-weight:700;color:#ffb27a;display:none;animation:pulse 1.2s ease-in-out infinite}
+#shop{overflow:auto}
 #xp{position:absolute;left:0;right:0;bottom:0;height:.45cqw;background:rgba(0,0,0,.55)}
 #xp i{display:block;height:100%;transform-origin:left;background:var(--gold);transition:transform .2s}
 .modal{position:absolute;inset:0;display:grid;place-items:center;z-index:20;pointer-events:auto;overflow:auto;background:radial-gradient(ellipse at 50% 40%,rgba(34,12,8,.5),rgba(3,1,1,.9))}
@@ -196,6 +201,8 @@ table.res th{color:var(--muted);font-weight:600}
     <div id="skills"></div>
     <div id="mv" class="ia"><button class="mvb" id="mvUp" aria-label="เดินขึ้น">▲</button><button class="mvb" id="mvDown" aria-label="เดินลง">▼</button></div>
     <div id="hint"></div>
+    <button id="camL" class="camb">◀</button><button id="camR" class="camb">▶</button>
+    <div id="farInd" class="panel"></div>
     <div id="xp"><i id="xpBar"></i></div>
   </div>
 
@@ -233,7 +240,8 @@ table.res th{color:var(--muted);font-weight:600}
 const $=id=>document.getElementById(id);
 const fmt=n=>Math.round(n).toLocaleString('en-US');
 let scene,gfx,canvas,popPool=[],RS=1;
-const mouse={x:760,y:520};
+const mouse={x:760,y:520,sx:640,in:false};
+let camX=0;
 const net={role:null,tp:null,started:false,conns:[],hostConn:null,peer:null,left:0,emap:new Map(),acc:0,code:'',idx:0,lobbyHost:false,lobbyN:0,names:[],mmap:new Map()};
 const embers=[],fogs=[];
 let toastTimer=0;
@@ -271,7 +279,7 @@ const HK={
   gtoast:m=>{uiToast(m);if(net.role==='host')netSend({t:'toast',m});},
   onEnd:(win,reason)=>{if(net.role==='host'){netSnap();netSend({t:'end',win,reason});}showEnd(win,reason);},
   onChurchHit:()=>{const h=$('hurt');h.classList.add('on');setTimeout(()=>h.classList.remove('on'),180);},
-  onStart:()=>{$('mMenu').classList.add('hide');$('mEnd').classList.add('hide');$('mClass').classList.add('hide');$('mPause').classList.add('hide');buildParty();skillKey='';$('bSpeed').textContent='ความเร็ว ×1';},
+  onStart:()=>{camX=0;$('mMenu').classList.add('hide');$('mEnd').classList.add('hide');$('mClass').classList.add('hide');$('mPause').classList.add('hide');buildParty();skillKey='';$('bSpeed').textContent='ความเร็ว ×1';},
   onClassOpen:()=>showClassSelect(),
   onPick:()=>classWaitRender(),
   onClassConfirm:()=>{skillKey='';$('mClass').classList.add('hide');},
@@ -427,17 +435,17 @@ function musicTick(){
 
 'use strict';
 /* ===================== CONFIG (ปรับบาลานซ์ตรงนี้) ===================== */
-const W=1280,H=720,GY0=440,GY1=610,CHX=215;
+const W=1280,H=720,WW=1800,GY0=440,GY1=610,CHX=215;   // WW = ความกว้างแมพ (จอเลื่อนซ้าย-ขวาได้)
 const CFG={
   waves:20,classWave:5,
   churchHp:n=>650+150*n,
   countMul:{1:.45,2:.7,3:.9,4:1},      // จำนวนมอนตามจำนวนผู้เล่น
   bossHpMul:{1:.38,2:.72,3:.88,4:1},   // เลือดบอสตามจำนวนผู้เล่น
-  hpGrow:.13,dmgGrow:.09,            // มอนแรงขึ้นต่อเวฟ
+  hpGrow:.13,dmgGrow:.1,            // มอนแรงขึ้นต่อเวฟ
   firstDelay:6,intermission:4,
   reviveTime:4.5,reviveSupport:3,reviveHp:.4,reviveBetween:true,reviveBetweenHp:.35,
   shareDmg:.5,                         // EXP: 70% ตามดาเมจที่ทำ / 30% หารเท่ากันทุกคนที่ยังรอด
-  goldMul:.7,potCd:6,maxLvl:12,maxSkill:5,hpPerLvl:.08,dmgPerLvl:.06
+  goldMul:.6,potCd:6,maxLvl:12,maxSkill:5,hpPerLvl:.08,dmgPerLvl:.06
 };
 const rnd=(a,b)=>a+Math.random()*(b-a);
 const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
@@ -461,6 +469,7 @@ const EN={
   krasue:{n:'กระสือ',hp:95,spd:62,dmg:11,cd:1.2,size:18,exp:12,col:0xff6a7a,fly:1,h:30},
   pop:{n:'ปอบ',hp:560,spd:36,dmg:34,cd:1.5,size:42,exp:34,col:0x9a2438,h:100},
   phrai:{n:'ผีพราย',hp:80,spd:38,dmg:9,cd:2.4,size:17,exp:11,col:0x6fe3ff,h:50,rng:430},
+  phoeng:{n:'ผีพรายเพลิง',hp:260,spd:34,dmg:20,cd:3,size:24,exp:26,col:0xff8a3a,h:64,rng:520},
   phantom:{n:'ผีอำ',hp:420,spd:95,dmg:3,cd:.6,size:20,exp:16,col:0xc7b8ff,h:56,amb:1},
   yak:{n:'ยักษ์สุสาน',hp:1500,spd:15,dmg:55,cd:2.2,size:62,exp:70,col:0x6a8f5a,h:150},
   boss1:{n:'เปรตราชา',hp:4800,spd:21,dmg:58,cd:1.8,size:74,exp:200,col:0xe8a04a,boss:1,h:230},
@@ -469,11 +478,12 @@ const EN={
 function waveDef(w){
   const d=waveDefBase(w),list=d.list.slice();
   if(w>=3)list.push(['phantom',Math.ceil((w-1)/3)]);
-  if(w>=6)list.push(['phrai',Math.floor((w-3)/2)]);
+  if(w>=5)list.push(['phrai',Math.floor((w-1)/2)]);
+  if(w>=10)list.push(['phoeng',Math.floor((w-6)/3)]);
   if(w>=7&&w%2===1)list.push(['yak',w>=15?2:1]);
   return{list,boss:d.boss};
 }
-function waveBoost(w){return w<=4?1.9:(w<=10?1.6:1.4);}
+function waveBoost(w){return w<=4?2.2:(w<=10?1.9:1.7);}
 function waveCount(w,n){return Math.max(1,Math.round(n*CFG.countMul[nP]*waveBoost(w)));}
 function waveDefBase(w){
   const L=[null,
@@ -495,7 +505,7 @@ function waveDefBase(w){
 
 /* ===================== STATE ===================== */
 let players=[],enemies=[],projs=[],zones=[],walls=[],fx=[],popups=[],sched=[],spawnQ=[];
-let ebolts=[],gearSent=-1,minions=[],trees=[],mid=0;
+let churchRepairs=0,ebolts=[],gearSent=-1,minions=[],trees=[],mid=0;
 let T=0,speed=1,state='menu',wave=0,interT=0,churchHp=1,churchMax=1,ctl=0,targeting=-1;
 let nP=1,botsOn=true,botAll=false,classChosen=false,paused=false,shakeAmt=0,churchFlash=0,waveClock=0,bossRef=null,ann=null,chosen=[];
 let eid=0;
@@ -609,16 +619,16 @@ function hitChurch(d){
 /* ===================== SKILLS ===================== */
 const SKILLS={
 summoner:[
- {n:'เรียกหมาป่า',ic:'🐺',k:'self',cd:22,mp:30,ai:'wolf',d:'เรียกหมาป่า 2 ตัว อยู่จนกว่าจะตาย ตายแล้วรอคูลดาวน์เรียกใหม่เลือดเต็ม ช่วยตีและล่อให้ผีมาตี',
+ {n:'เรียกหมาป่า',ic:'🐺',k:'self',cd:26,mp:30,ai:'wolf',d:'เรียกหมาป่า 2 ตัว อยู่จนกว่าจะตาย ตายแล้วรอคูลดาวน์เรียกใหม่เลือดเต็ม ช่วยตีและล่อให้ผีมาตี',
   cast(p,t,l){summonMinions(p,'wolf',l);return true;}},
  {n:'ต้นไม้หนาม',ic:'🌳',k:'point',r:90,cd:14,mp:28,ai:'tree',d:'วางต้นไม้ฟาดผีรอบตัว ชะลอ และขวางทางเดิน',
   cast(p,t,l){
-    const hp=220+90*l,x=clamp(t.x,380,1100),y=clamp(t.y,GY0+15,GY1);
-    trees.push({id:++mid,own:p.i,x,y,hp,max:hp,until:T+10+l,tick:0,dmg:22+9*l,age:0});
+    const hp=130+50*l,x=clamp(t.x,380,1500),y=clamp(t.y,GY0+15,GY1);
+    trees.push({id:++mid,own:p.i,x,y,hp,max:hp,until:T+8+l,tick:0,dmg:22+9*l,age:0});
     ring(x,y,0x7ad66a,90);sfx('tree');return true;}},
  {n:'หมูป่าพุ่งชน',ic:'🐗',k:'aim',cd:12,mp:30,ai:'lane',d:'หมูป่าพุ่งชนผีทุกตัวในแนวเส้นตรงแล้วหายไป',
   cast(p,t,l){charge(p,t,'boar',{dur:1.1,r:55,band:68,dmg:(55+22*l)*dm(p),kb:70,daze:.6});return true;}},
- {n:'เรียกช้าง',ic:'🐘',k:'self',cd:45,mp:60,ai:'eleph',d:'เรียกช้างศึกเลือดเยอะ ตีช้าแต่แรงและตีกระจาย ช่วยแทงค์',
+ {n:'เรียกช้าง',ic:'🐘',k:'self',cd:50,mp:60,ai:'eleph',d:'เรียกช้างศึกเลือดเยอะ ตีช้าแต่แรงและตีกระจาย ช่วยแทงค์',
   cast(p,t,l){summonMinions(p,'elephant',l);return true;}}
 ],
 archer:[
@@ -672,7 +682,7 @@ tank:[
  {n:'โล่พุ่ง',ic:'🛡️',k:'auto',cd:3.5,mp:10,ai:'auto',d:'ปาโล่พุ่งชนมอนเตอร์ ผลักถอย',
   cast(p,t,l){shoot(p,aimAng(p),{dmg:(22+9*l)*dm(p),spd:900,r:16,pierce:3,kb:55,col:0xaec4ff,kind:'shield',life:1.1});return true;}},
  {n:'กำแพง',ic:'🧱',k:'wall',cd:14,mp:25,ai:'wall',d:'สร้างกำแพงกันผีเดิน (บินข้ามได้)',
-  cast(p,t,l){const x=clamp(t.x,380,1100),h=140+70*l;walls.push({x,hp:h,max:h,until:T+5+l});ring(x,GY1-40,0xe8b85a,60);return true;}},
+  cast(p,t,l){const x=clamp(t.x,380,1500),h=140+70*l;walls.push({x,hp:h,max:h,until:T+5+l});ring(x,GY1-40,0xe8b85a,60);return true;}},
  {n:'พรเสริมเลือด',ic:'❤️',k:'team',cd:20,mp:30,ai:'hpbuff',d:'เพิ่มเลือดสูงสุดให้ทีมชั่วคราว',
   cast(p,t,l){const add=35+14*l;for(const q of players)if(q.alive){
     if(T<q.hpBuffUntil){const df=Math.max(0,add-q.hpBuff);q.hpBuff+=df;q.hp+=df;}else{q.hpBuff=add;q.hp+=add;}
@@ -718,7 +728,7 @@ function rollRarity(m){
 }
 function dropFor(m){
   const n=m.type==='boss1'?2:(m.type==='boss2'?3:(Math.random()<(DROP_CH[m.type]||.02)?1:0));
-  for(let i=0;i<n;i++)drops.push({id:++iid,x:clamp(m.x+rnd(-24,24),70,1250),y:clamp(m.y,GY0+10,GY1),it:rollItem(rollRarity(m)),age:0,life:34});
+  for(let i=0;i<n;i++)drops.push({id:++iid,x:clamp(m.x+rnd(-24,24),70,1700),y:clamp(m.y,GY0+10,GY1),it:rollItem(rollRarity(m)),age:0,life:34});
   if(n)sfx('drop');
 }
 function equipItem(p,it){
@@ -748,13 +758,15 @@ const SHOP={
   mp:{n:'มานาสูงสุด',ic:'🔷',d:'+25 ต่อระดับ',base:90,max:5},
   dmg:{n:'ดาเมจ',ic:'⚔️',d:'+8% ต่อระดับ',base:140,max:5},
   regen:{n:'ฟื้นมานาไว',ic:'🌀',d:'+25% ต่อระดับ',base:110,max:4},
-  cdr:{n:'ลดคูลดาวน์สกิล',ic:'⏱️',d:'-10% ต่อระดับ',base:240,max:3}
+  cdr:{n:'ลดคูลดาวน์สกิล',ic:'⏱️',d:'-10% (ซื้อได้ครั้งเดียว)',base:700,max:1},
+  repair:{n:'ซ่อมโบสถ์',ic:'⛪',d:'+15% เลือดโบสถ์ · ราคาขึ้นตามเวฟและจำนวนครั้ง'}
 };
 const SHOP_IDS=Object.keys(SHOP);
-function shopCost(p,id){const s=SHOP[id];return s.cost||Math.round(s.base*Math.pow(1.6,p.buffs[id]));}
+function shopCost(p,id){if(id==='repair')return Math.round((120+18*wave)*(1+.15*churchRepairs));const s=SHOP[id];return s.cost||Math.round(s.base*Math.pow(1.6,p.buffs[id]));}
 function buyItem(p,id){
   const s=SHOP[id];if(!p||!s)return false;
   const c=shopCost(p,id);if(p.gold<c)return false;
+  if(id==='repair'){if(churchHp>=churchMax||state==='over')return false;p.gold-=c;churchRepairs++;churchHp=Math.min(churchMax,churchHp+churchMax*.15);sfx('buy',p.i);gtoast(p.name+' ซ่อมโบสถ์ +15%');return true;}
   if(id==='hpPot'||id==='mpPot'){const k=id==='hpPot'?'hp':'mp';if(p.pots[k]>=s.cap)return false;p.gold-=c;p.pots[k]++;sfx('buy',p.i);return true;}
   if(p.buffs[id]>=s.max)return false;
   const hb=maxHp(p),mb=maxMp(p);p.gold-=c;p.buffs[id]++;
@@ -780,7 +792,7 @@ function pickAlly(p,x,y,usePtr){
 function makeTarget(p,s,px,py){
   const has=px!==null&&px!==undefined;
   const t={x:has?px:p.x+320,y:has?py:p.y};
-  if(s.k==='point'||s.k==='wall'){t.x=clamp(t.x,120,1240);t.y=clamp(t.y,GY0+10,GY1);}
+  if(s.k==='point'||s.k==='wall'){t.x=clamp(t.x,120,1700);t.y=clamp(t.y,GY0+10,GY1);}
   if(s.k==='ally')t.ally=pickAlly(p,t.x,t.y,has);
   return t;
 }
@@ -836,6 +848,7 @@ function botTarget(p,s){
   return null;
 }
 function botShop(p){
+  if(churchHp<churchMax*.55&&p.gold>=shopCost(p,'repair')+60){buyItem(p,'repair');return;}
   const want=p.cls==='tank'?['hp','dmg','cdr','regen','mp']:p.cls==='support'?['regen','cdr','hp','dmg','mp']:['dmg','cdr','hp','regen','mp'];
   if(p.pots.hp<2&&buyItem(p,'hpPot'))return;
   if(p.pots.mp<1&&buyItem(p,'mpPot'))return;
@@ -860,7 +873,7 @@ function botThink(p,dt){
 function spawn(type,x,y){
   const d=EN[type],b=!!d.boss;
   const hpm=b?CFG.bossHpMul[nP]:1+CFG.hpGrow*(wave-1);
-  const m={id:++eid,type,rng:d.rng||0,x:x===undefined?(d.amb?rnd(430,640):1330+Math.round(clamp(d.spd*12,250,900))+rnd(0,60)):x,y:y===undefined?(d.fly?rnd(250,360):rnd(GY0+10,GY1)):y,
+  const m={id:++eid,type,rng:d.rng||0,x:x===undefined?(d.amb?rnd(430,640):WW+60+Math.round(clamp(d.spd*8,160,600))+rnd(0,60)):x,y:y===undefined?(d.fly?rnd(250,360):rnd(GY0+10,GY1)):y,
     hp:d.hp*hpm,maxHp:0,spd:d.spd*rnd(.92,1.08)*(b?1:1.18),dmg:b?d.dmg:d.dmg*(1+CFG.dmgGrow*(wave-1)),dmgMul:1,cd:d.cd,atkT:rnd(0,d.cd),size:d.size,exp:d.exp,col:d.col,
     fly:!!d.fly,hop:!!d.hop,boss:b,name:d.n,h:d.h,age:rnd(0,5),ph:rnd(0,6.28),flash:0,atkAnim:0,slowUntil:0,slowMul:1,dazeUntil:0,reverseUntil:0,
     burnUntil:0,burnDps:0,burnAcc:0,burnOwner:-1,dmgBy:{},last:-1,dead:false,enraged:false,phase:0,summonT:6,boltT:9};
@@ -903,8 +916,8 @@ function stepEnemy(m,dt){
   if(!m.fly){for(const t of trees){if(m.x>t.x-4&&m.x-t.x<m.size*.6+22&&Math.abs(m.y-t.y)<42){m.atkT-=dt;if(m.atkT<=0){m.atkT=m.cd;m.atkAnim=.22;t.hp-=m.dmg*.8;}return;}}}
   if(m.rng&&tgt&&!tgt.isM&&td<=m.rng){
     m.atkT-=dt;
-    if(m.atkT<=0){m.atkT=m.cd;m.atkAnim=.22;const sx=m.x,sy=m.y-m.size*.8,dx=tgt.x-sx,dy=(tgt.y-28)-sy,L=Math.hypot(dx,dy)||1,sp=280;
-      sfx('ebolt');ebolts.push({x:sx,y:sy,vx:dx/L*sp,vy:dy/L*sp,dmg:m.dmg*m.dmgMul,life:2.6,col:m.col,dead:false});}
+    if(m.atkT<=0){m.shot=(m.shot||0)+1;const heavy=m.shot%2===0;m.atkT=m.cd*(heavy?1.5:.65);m.atkAnim=.22;const sx=m.x,sy=m.y-m.size*.8,dx=tgt.x-sx,dy=(tgt.y-28)-sy,L=Math.hypot(dx,dy)||1,sp=heavy?230:330;
+      sfx('ebolt');ebolts.push({x:sx,y:sy,vx:dx/L*sp,vy:dy/L*sp,dmg:m.dmg*m.dmgMul*(heavy?2.5:.55),life:3,col:heavy?0xff5a2a:m.col,big:heavy,dead:false});}
     return;
   }
   if(tgt&&td<=reach){m.atkT-=dt;if(m.atkT<=0){m.atkT=m.cd;m.atkAnim=.22;if(tgt.isM){tgt.hp-=m.dmg*m.dmgMul;tgt.flash=.12;}else hitPlayer(tgt,m.dmg*m.dmgMul);}return;}
@@ -916,8 +929,8 @@ function stepEnemy(m,dt){
 function stepEbolts(dt){
   for(const b of ebolts){
     b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;
-    if(b.life<=0||b.x<-20||b.x>1400||b.y<0||b.y>800){b.dead=true;continue;}
-    for(const p of players){if(!p.alive)continue;if(hyp(b.x-p.x,b.y-(p.y-28))<24){hitPlayer(p,b.dmg);b.dead=true;break;}}
+    if(b.life<=0||b.x<-20||b.x>WW+150||b.y<0||b.y>800){b.dead=true;continue;}
+    for(const p of players){if(!p.alive)continue;if(hyp(b.x-p.x,b.y-(p.y-28))<(b.big?30:22)){hitPlayer(p,b.dmg);b.dead=true;break;}}
     if(!b.dead&&b.x<CHX+10){hitChurch(b.dmg*.7);b.dead=true;}
   }
   ebolts=ebolts.filter(b=>!b.dead);
@@ -926,17 +939,17 @@ function summonMinions(p,kind,l){
   minions=minions.filter(w=>!(w.own===p.i&&w.kind===kind));
   const lv=1+.05*(p.lvl-1);
   if(kind==='wolf'){
-    const hp=Math.round((150+45*l)*lv);
+    const hp=Math.round((95+28*l)*lv);
     for(let k=0;k<2;k++)minions.push({id:++mid,own:p.i,kind:'wolf',isM:true,x:p.x+30+k*18,y:clamp(p.y+(k?18:-18),YMIN,YMAX),hp,max:hp,dmg:14+5*l,spd:175,cd:.85,aoe:0,rch:26,atkT:0,until:Infinity,fury:0,flash:0,atkAnim:0,age:rnd(0,3),face:1,dead:false});
     ring(p.x+30,p.y,0x7ad66a,80);sfx('wolf');
   }else{
-    const hp=Math.round((700+230*l)*lv);
-    minions.push({id:++mid,own:p.i,kind:'elephant',isM:true,x:p.x+60,y:clamp(p.y,YMIN,YMAX),hp,max:hp,dmg:50+20*l,spd:95,cd:2,aoe:95,rch:50,atkT:0,until:T+26+3*l,fury:0,flash:0,atkAnim:0,age:rnd(0,3),face:1,dead:false});
+    const hp=Math.round((420+140*l)*lv);
+    minions.push({id:++mid,own:p.i,kind:'elephant',isM:true,x:p.x+60,y:clamp(p.y,YMIN,YMAX),hp,max:hp,dmg:50+20*l,spd:95,cd:2,aoe:95,rch:50,atkT:0,until:T+20+2*l,fury:0,flash:0,atkAnim:0,age:rnd(0,3),face:1,dead:false});
     ring(p.x+60,p.y,0xd8c8a0,110);sfx('elephant');
   }
 }
 function charge(p,t,kind,o){
-  const ly=clamp(t.y,GY0+30,GY1-10),x0=p.x+40,x1=1380,hit=new Set(),steps=Math.round(o.dur/.05);
+  const ly=clamp(t.y,GY0+30,GY1-10),x0=p.x+40,x1=WW+100,hit=new Set(),steps=Math.round(o.dur/.05);
   fx.push({k:kind,x0,x1,y:ly,t:0,dur:o.dur});sfx(kind);
   for(let i=1;i<=steps;i++)later(i*o.dur/steps,()=>{
     const ex=x0+(x1-x0)*(i/steps);
@@ -1017,7 +1030,7 @@ function stepProjs(dt){
     const sp=Math.hypot(b.vx,b.vy),n=Math.max(1,Math.ceil(sp*dt/12)),h=dt/n;
     for(let s=0;s<n&&!b.dead;s++){
       b.px=b.x;b.py=b.y;b.x+=b.vx*h;b.y+=b.vy*h;
-      if(b.x>1400||b.x<-50||b.y<-60||b.y>800){b.dead=true;break;}
+      if(b.x>WW+150||b.x<-50||b.y<-60||b.y>800){b.dead=true;break;}
       for(const m of enemies){
         if(m.dead||b.hit.includes(m))continue;
         if(hyp(b.x-m.x,b.y-ecy(m))<m.size+b.r){
@@ -1098,7 +1111,7 @@ function assignSlots(){
 }
 function startGame(n,bots,names){
   nP=n;botsOn=bots;T=0;speed=1;wave=0;classChosen=false;ctl=0;targeting=-1;paused=false;ann=null;shakeAmt=0;
-  players=[];enemies=[];projs=[];ebolts=[];minions=[];trees=[];drops=[];gearVer=0;gearSent=-1;zones=[];walls=[];fx=[];popups=[];sched=[];spawnQ=[];bossRef=null;chosen=[];
+  churchRepairs=0;players=[];enemies=[];projs=[];ebolts=[];minions=[];trees=[];drops=[];gearVer=0;gearSent=-1;zones=[];walls=[];fx=[];popups=[];sched=[];spawnQ=[];bossRef=null;chosen=[];
   for(let i=0;i<n;i++){const p=makePlayer(i,names&&names[i]);const s=SLOT[n][i];p.tx=s[0];p.ty=s[1];p.x=s[0]-120;p.y=s[1];p.hp=maxHp(p);p.mana=maxMp(p);players.push(p);}
   churchMax=churchHp=CFG.churchHp(n);
   state='intermission';interT=CFG.firstDelay;
@@ -1167,7 +1180,7 @@ function encEnemy(m){
 function buildSnaps(){
   const q=++snapSeq,out=[];
   const sfN=Object.assign({},sfxNet),sfP=Object.assign({},sfxNetP);for(const k in sfxNet)delete sfxNet[k];for(const k in sfxNetP)delete sfxNetP[k];
-  out.push({t:'S',sf:sfN,sg:sfP,T:r2(T),s:state,w:wave,it:r1(interT),l:enemies.length+spawnQ.length,ch:Math.ceil(churchHp),cm:churchMax,sh:r1(shakeEvt),sp:netSpeed,cf:r2(churchFlash),
+  out.push({t:'S',cr:churchRepairs,sf:sfN,sg:sfP,T:r2(T),s:state,w:wave,it:r1(interT),l:enemies.length+spawnQ.length,ch:Math.ceil(churchHp),cm:churchMax,sh:r1(shakeEvt),sp:netSpeed,cf:r2(churchFlash),
     an:ann&&T<ann.until?{t:ann.t,s:ann.s,r:r1(ann.until-T)}:null,
     p:players.map(p=>({n:p.name,tk:Math.round(p.taken),g:Math.floor(p.gold),pt:[p.pots.hp,p.pots.mp],bf:[p.buffs.hp,p.buffs.mp,p.buffs.dmg,p.buffs.regen,p.buffs.cdr],pc:[r1(Math.max(0,p.potCd.hp-T)),r1(Math.max(0,p.potCd.mp-T))],x:r1(p.x),y:r1(p.y),cls:p.cls,hp:r1(p.hp),mana:r1(p.mana),lvl:p.lvl,exp:r1(p.exp),sp:p.sp,sl:p.skillLv,cd:p.cd.map(r1),al:p.alive?1:0,
       hb:p.hpBuff,hbu:r1(p.hpBuffUntil),bm:r2(p.buffMul),bu:r1(p.buffUntil),ru:r1(p.rapidUntil),iv:r1(p.invuln),fl:r2(p.flash),ca:r2(p.castAnim),rc:r2(p.recoil),
@@ -1179,7 +1192,7 @@ function buildSnaps(){
   let pr=projs.slice(0,40).map(b=>[r1(b.x),r1(b.y),Math.round(b.vx),Math.round(b.vy),b.kind,b.col,b.r]);
   let fl=fx.slice(-12).map(f=>{const o={};for(const k in f)o[k]=typeof f[k]==='number'?r2(f[k]):f[k];return o;});
   let po=popups.slice(-10).map(a=>[r1(a.x),r1(a.y),a.txt,a.col,a.sz,r2(a.t)]);
-  let eb=ebolts.slice(0,24).map(b=>[r1(b.x),r1(b.y),Math.round(b.vx),Math.round(b.vy),b.col]);
+  let eb=ebolts.slice(0,24).map(b=>[r1(b.x),r1(b.y),Math.round(b.vx),Math.round(b.vy),b.col,b.big?1:0]);
   let dr=drops.slice(0,10).map(d=>[d.id,r1(d.x),r1(d.y),d.it.r,d.it.s,d.it.n,d.it.af]);
   let mn=minions.slice(0,10).map(w=>[w.id,w.own,r1(w.x),r1(w.y),Math.max(0,Math.round(w.hp/w.max*100)),w.face,r2(w.flash),w.kind==='elephant'?1:0]);
   let tr=trees.slice(0,6).map(t=>[t.id,r1(t.x),r1(t.y),Math.max(0,Math.round(t.hp/t.max*100)),r1(t.until-T)]);
@@ -1239,53 +1252,49 @@ function palm(g,x,b,h,col,R){
 function makeBg(sc){
   const g=sc.make.graphics({x:0,y:0,add:false});
   let sd=11;const R=()=>{sd=(sd*16807)%2147483647;return sd/2147483647;};
-  band(g,0,0,W,470,0x0e0408,0x93301a,64);
-  for(let i=0;i<7;i++){g.fillStyle(0xff7a2a,.045);g.fillEllipse(760,462,1900-i*230,300-i*38);}
+  band(g,0,0,WW,470,0x0e0408,0x93301a,64);
+  for(let i=0;i<8;i++){g.fillStyle(0xff7a2a,.045);g.fillEllipse(900,462,2500-i*280,300-i*36);}
   for(let r=210;r>66;r-=12){g.fillStyle(0xff3a1c,.022);g.fillCircle(910,135,r);}
   g.fillStyle(0xd8402a,1);g.fillCircle(910,135,60);
   g.fillStyle(0x2e0d0d,1);g.fillCircle(926,124,53);
-  for(let i=0;i<18;i++){g.fillStyle(0x1a0709,.28);g.fillEllipse(R()*W,40+R()*340,260+R()*420,26+R()*40);}
-  // fires behind ruins
-  for(const fx0 of[520,760,1040,1210]){for(let r=130;r>20;r-=22){g.fillStyle(0xff6a1f,.05);g.fillCircle(fx0,452,r);}}
-  // far skyline
+  for(let i=0;i<26;i++){g.fillStyle(0x1a0709,.28);g.fillEllipse(R()*WW,40+R()*340,260+R()*420,26+R()*40);}
+  for(const fx0 of[520,760,1040,1210,1420]){for(let r=130;r>20;r-=22){g.fillStyle(0xff6a1f,.05);g.fillCircle(fx0,452,r);}}
   const far=0x2d0e10;
   chedi(g,380,462,120,far);prang(g,560,462,200,far);chedi(g,690,462,92,far);prang(g,780,462,150,far);
-  prang(g,1010,462,185,far);chedi(g,1110,462,100,far);prang(g,1215,462,125,far);
-  ruinWall(g,300,470,462,46,far,R);ruinWall(g,820,980,462,56,far,R);ruinWall(g,1130,1290,462,50,far,R);
-  // near layer
+  prang(g,1010,462,185,far);chedi(g,1110,462,100,far);prang(g,1215,462,125,far);chedi(g,1330,462,110,far);prang(g,1420,462,150,far);
+  ruinWall(g,300,470,462,46,far,R);ruinWall(g,820,980,462,56,far,R);ruinWall(g,1130,1290,462,50,far,R);ruinWall(g,1300,1500,462,44,far,R);
   const near=0x1a0708;
-  ruinWall(g,240,420,470,38,near,R);ruinWall(g,600,760,470,44,near,R);ruinWall(g,930,1100,470,36,near,R);
-  palm(g,470,472,150,near,R);palm(g,880,472,130,near,R);palm(g,1160,474,160,near,R);palm(g,330,474,120,near,R);
-  // ป่าทึบฝั่งขวา (ที่ผีออกมา)
+  ruinWall(g,240,420,470,38,near,R);ruinWall(g,600,760,470,44,near,R);ruinWall(g,930,1100,470,36,near,R);ruinWall(g,1240,1420,470,40,near,R);
+  palm(g,470,472,150,near,R);palm(g,880,472,130,near,R);palm(g,1160,474,160,near,R);palm(g,330,474,120,near,R);palm(g,1350,474,140,near,R);
   jungle(g,R);
-  // ground
-  band(g,0,455,W,265,0x2b130f,0x080303,44);
-  g.fillStyle(0x5a2a1a,.28);g.fillRect(0,GY0-4,W,GY1-GY0+34);
-  for(let i=0;i<7;i++){g.fillStyle(0xd0602a,.05);g.fillEllipse(640,458,1500-i*150,44-i*4);}
-  for(let i=0;i<120;i++){g.fillStyle(0x120605,.45);g.fillEllipse(220+R()*1060,GY0+R()*(GY1-GY0+20),6+R()*14,3+R()*4);}
-  for(let i=0;i<26;i++){const x=240+R()*1000,y=GY0+10+R()*170;g.lineStyle(1,0x0d0403,.55);g.beginPath();g.moveTo(x,y);g.lineTo(x+14,y+4);g.lineTo(x+22,y-3);g.strokePath();}
-  for(let i=0;i<22;i++){g.fillStyle(0x3a1d17,.7);g.fillRect(260+R()*980,GY0+10+R()*170,5+R()*8,3+R()*4);}
-  band(g,0,640,W,80,0x0a0404,0x040101,10);
+  band(g,0,455,WW,265,0x2b130f,0x080303,44);
+  g.fillStyle(0x5a2a1a,.28);g.fillRect(0,GY0-4,WW,GY1-GY0+34);
+  for(let i=0;i<8;i++){g.fillStyle(0xd0602a,.05);g.fillEllipse(WW/2,458,2300-i*210,44-i*4);}
+  for(let i=0;i<190;i++){g.fillStyle(0x120605,.45);g.fillEllipse(220+R()*1550,GY0+R()*(GY1-GY0+20),6+R()*14,3+R()*4);}
+  for(let i=0;i<38;i++){const x=240+R()*1480,y=GY0+10+R()*170;g.lineStyle(1,0x0d0403,.55);g.beginPath();g.moveTo(x,y);g.lineTo(x+14,y+4);g.lineTo(x+22,y-3);g.strokePath();}
+  for(let i=0;i<32;i++){g.fillStyle(0x3a1d17,.7);g.fillRect(260+R()*1460,GY0+10+R()*170,5+R()*8,3+R()*4);}
+  // พงหญ้าใต้ป่า
+  for(let i=0;i<34;i++){const x=1540+R()*250,y=440+R()*190;g.fillStyle(0x0b2410,.85);g.fillTriangle(x-12,y+26,x,y-14-R()*20,x+12,y+26);}
+  band(g,0,640,WW,80,0x0a0404,0x040101,10);
   church(g);
-  g.generateTexture('bg',W,H);g.destroy();
+  g.generateTexture('bg',WW,H);g.destroy();
 }
 function jungle(g,R){
-  const cols=[0x0a1a0e,0x0d2212,0x112a16];
-  for(let i=0;i<22;i++){const x=1000+R()*300,h=170+R()*150;g.fillStyle(0x1a0f08,1);g.fillRect(x,470-h,8+R()*10,h);}
-  for(let i=0;i<70;i++){const x=980+R()*330,y=280+R()*200,rr=22+R()*40;g.fillStyle(cols[(R()*3)|0],.95);g.fillCircle(x,y,rr);}
-  for(let i=0;i<8;i++)palm(g,1030+R()*240,474,120+R()*70,0x08150b,R);
-  for(let i=0;i<30;i++){const x=1000+R()*290,y=440+R()*40;g.fillStyle(0x0b2410,.9);g.fillTriangle(x-14,y+30,x,y-12-R()*22,x+14,y+30);}
-  for(let r=140;r>30;r-=22){g.fillStyle(0xff6a1f,.018);g.fillCircle(1130,470,r);}
+  const cols=[0x0a1a0e,0x0d2212,0x112a16],X0=1500;
+  for(let i=0;i<24;i++){const x=X0+R()*300,h=170+R()*150;g.fillStyle(0x1a0f08,1);g.fillRect(x,470-h,8+R()*10,h);}
+  for(let i=0;i<80;i++){const x=X0-20+R()*330,y=280+R()*200,rr=22+R()*40;g.fillStyle(cols[(R()*3)|0],.95);g.fillCircle(x,y,rr);}
+  for(let i=0;i<9;i++)palm(g,X0+30+R()*250,474,120+R()*70,0x08150b,R);
+  for(let r=140;r>30;r-=22){g.fillStyle(0xff6a1f,.018);g.fillCircle(1650,470,r);}
 }
 function makeFg(sc){
   const g=sc.make.graphics({x:0,y:0,add:false});
   let sd=23;const R=()=>{sd=(sd*16807)%2147483647;return sd/2147483647;};
-  for(let i=0;i<30;i++){const x=1050+R()*150,y=250+R()*390,rr=18+R()*34;g.fillStyle(0x0b1c0e,.18+R()*.3);g.fillCircle(x,y,rr);}
-  for(let i=0;i<10;i++){const x=1175+R()*115,w=14+R()*24;g.fillStyle(0x140b07,1);g.fillRect(x,290+R()*70,w,440);g.fillTriangle(x-10,650,x+w+10,650,x+w/2,520);}
-  for(let i=0;i<56;i++){const x=1130+R()*190,y=250+R()*400,rr=24+R()*46;g.fillStyle(0x07140a+((R()*0x0a)<<8),.93);g.fillCircle(x,y,rr);}
-  for(let i=0;i<14;i++){const x=1150+R()*140,y0=290+R()*70;g.lineStyle(2,0x153015,.85);g.beginPath();g.moveTo(x,y0);g.lineTo(x+R()*14-7,y0+60+R()*90);g.lineTo(x+R()*18-9,y0+140+R()*90);g.strokePath();}
-  for(let i=0;i<18;i++){const x=1120+R()*170,y=640+R()*70;g.fillStyle(0x07140a,.95);g.fillTriangle(x-16,y+40,x,y-24-R()*20,x+16,y+40);}
-  g.generateTexture('fg',W,H);g.destroy();
+  for(let i=0;i<30;i++){const x=1570+R()*150,y=250+R()*390,rr=18+R()*34;g.fillStyle(0x0b1c0e,.18+R()*.3);g.fillCircle(x,y,rr);}
+  for(let i=0;i<10;i++){const x=1690+R()*100,w=14+R()*24;g.fillStyle(0x140b07,1);g.fillRect(x,290+R()*70,w,440);g.fillTriangle(x-10,650,x+w+10,650,x+w/2,520);}
+  for(let i=0;i<56;i++){const x=1640+R()*180,y=250+R()*400,rr=24+R()*46;g.fillStyle(0x07140a+((R()*0x0a)<<8),.93);g.fillCircle(x,y,rr);}
+  for(let i=0;i<14;i++){const x=1660+R()*130,y0=290+R()*70;g.lineStyle(2,0x153015,.85);g.beginPath();g.moveTo(x,y0);g.lineTo(x+R()*14-7,y0+60+R()*90);g.lineTo(x+R()*18-9,y0+140+R()*90);g.strokePath();}
+  for(let i=0;i<18;i++){const x=1630+R()*170,y=640+R()*70;g.fillStyle(0x07140a,.95);g.fillTriangle(x-16,y+40,x,y-24-R()*20,x+16,y+40);}
+  g.generateTexture('fg',WW,H);g.destroy();
 }
 function church(g){
   const gold=0xe8b85a;
@@ -1387,14 +1396,14 @@ function drawEnemy(g,m){
     g.fillStyle(0x8a6a4a,1);g.fillTriangle(X-22,y-s*1.95,X-14,y-s*2.0,X-24,y-s*2.4);g.fillTriangle(X+4,y-s*1.95,X-2,y-s*2.0,X+8,y-s*2.4);
     glow(g,X-14,y-s*1.82,10,0xff2a3a,.5);g.fillStyle(0xff2a3a,1);g.fillCircle(X-14,y-s*1.82,3);g.fillCircle(X-4,y-s*1.82,3);
     g.fillStyle(0xffffff,1);g.fillTriangle(X-14,y-s*1.6,X-11,y-s*1.6,X-12.5,y-s*1.6+9);g.fillTriangle(X-6,y-s*1.6,X-3,y-s*1.6,X-4.5,y-s*1.6+9);break;}
-  case 'phrai':{shadow(g,x,y,30);const cy=y-30+bob*2;
-    glow(g,X,cy,34,0x6fe3ff,.5);
-    g.fillStyle(tn(0x8ff0ff),.85);g.fillTriangle(X-12,y-3,X+12,y-3,X,cy-6);
-    g.fillStyle(tn(0xd8fbff),1);g.fillCircle(X,cy-10,9);
+  case 'phrai':case 'phoeng':{const hot=m.type==='phoeng',c1=hot?0xff8a3a:0x6fe3ff,c2=hot?0xffb36a:0x8ff0ff,c3=hot?0xfff0d8:0xd8fbff,k=hot?1.3:1;shadow(g,x,y,30*k);const cy=y-30*k+bob*2;
+    glow(g,X,cy,34*k,c1,.5);
+    g.fillStyle(tn(c2),.85);g.fillTriangle(X-12*k,y-3,X+12*k,y-3,X,cy-6);
+    g.fillStyle(tn(c3),1);g.fillCircle(X,cy-10*k,9*k);
     g.fillStyle(0x0a3a4a,1);g.fillCircle(X-3,cy-11,2.2);g.fillCircle(X+3,cy-11,2.2);
     g.lineStyle(2.5,0xcfe9ff,1);g.beginPath();g.arc(X-14,cy,12,-1.2,1.2,false);g.strokePath();
     g.lineStyle(1,0xffffff,.8);g.lineBetween(X-14+Math.cos(-1.2)*12,cy+Math.sin(-1.2)*12,X-14+Math.cos(1.2)*12,cy+Math.sin(1.2)*12);
-    if(m.atkAnim>0)glow(g,X-22,cy,12,0x6fe3ff,.9);break;}
+    if(m.atkAnim>0)glow(g,X-22*k,cy,12*k,c1,.9);break;}
   case 'phantom':{shadow(g,x,y,34);const cy=y-34+bob*2;
     glow(g,X,cy,38,0xc7b8ff,.3);
     g.fillStyle(tn(0x9d90d8),.78);g.fillTriangle(X-15,y-2,X+15,y-2,X,cy-14);
@@ -1611,10 +1620,10 @@ function drawFx(g,f){
 const drawList=[];
 function render(){
   const g=gfx;g.clear();
-  {let c=0;for(const m of enemies)if(m.x<1300)c++;LOD=c>90?2:(c>45?1:0);}
+  {let c=0;for(const m of enemies)if(m.x>camX-60&&m.x<camX+W+60)c++;LOD=c>90?2:(c>45?1:0);}
   drawChurchFx(g);
   for(let i=0;i<7;i++){const ph=T*.8+i*2.3,on=Math.sin(ph*3+i)>.15;if(!on)continue;
-    const ex=1180+((i*37)%95),ey=380+((i*61)%190),col=i%3===0?0xff3a3a:(i%3===1?0xffd24a:0x9aff7a);
+    const ex=1690+((i*37)%95),ey=380+((i*61)%190),col=i%3===0?0xff3a3a:(i%3===1?0xffd24a:0x9aff7a);
     glow(g,ex,ey,7,col,.5);g.fillStyle(col,.95);g.fillCircle(ex-5,ey,1.6);g.fillCircle(ex+5,ey,1.6);}
   for(const z of zones)drawZone(g,z);
   for(const w of walls)drawWall(g,w);
@@ -1627,14 +1636,14 @@ function render(){
   drawList.sort((a,b)=>a.y-b.y);
   for(const it of drawList){if(it.e===1)drawEnemy(g,it.o);else if(it.e===2){if(it.o.kind==='elephant')drawElephantM(g,it.o);else drawWolf(g,it.o);}else if(it.e===3)drawTree(g,it.o);else drawPlayer(g,it.o);}
   for(const b of projs)drawProj(g,b);
-  for(const b of ebolts){glow(g,b.x,b.y,13,b.col,.9);g.fillStyle(0xffffff,.95);g.fillCircle(b.x,b.y,3.2);g.lineStyle(3,b.col,.5);g.lineBetween(b.x,b.y,b.x-b.vx*.05,b.y-b.vy*.05);}
+  for(const b of ebolts){const big=!!b.big;glow(g,b.x,b.y,big?26:13,b.col,.9);g.fillStyle(0xffffff,.95);g.fillCircle(b.x,b.y,big?6:3.2);g.lineStyle(big?6:3,b.col,.55);g.lineBetween(b.x,b.y,b.x-b.vx*(big?.09:.05),b.y-b.vy*(big?.09:.05));}
   for(const f of fx)drawFx(g,f);
   // targeting reticle
   if(targeting>=0&&players[ctl]&&state!=='menu'){
     const p=players[ctl],s=SKILLS[p.cls][targeting],mx=mouse.x,my=mouse.y;
     g.lineStyle(2,0xffe08a,.9);
     if(s.k==='point'){const ty=clamp(my,GY0+10,GY1);g.strokeEllipse(mx,ty,s.r*2,s.r*1.18);g.fillStyle(0xffe08a,.1);g.fillEllipse(mx,ty,s.r*2,s.r*1.18);}
-    else if(s.k==='wall'){const wx=clamp(mx,380,1100);g.lineBetween(wx,380,wx,630);g.strokeRect(wx-14,GY0-24,28,200);}
+    else if(s.k==='wall'){const wx=clamp(mx,380,1500);g.lineBetween(wx,380,wx,630);g.strokeRect(wx-14,GY0-24,28,200);}
     else if(s.k==='aim'){g.lineBetween(p.x+12,p.y-28,mx,my);g.strokeCircle(mx,my,10);}
     else if(s.k==='ally'){const q=pickAlly(p,mx,my,true);if(q)g.strokeCircle(q.x,q.y-28,30);}
   }
@@ -1654,10 +1663,8 @@ function render(){
   }
 }
 function ambient(dt){
-  for(const e of embers){e.x+=e.vx*dt;e.y+=e.vy*dt;e.ph+=dt*3;if(e.y<-10||e.x<-10){e.x=rnd(W*.3,W+40);e.y=H+10;}}
-  for(const f of fogs){f.x+=f.v*dt;if(f.x>W+300)f.x=-300;if(f.x<-300)f.x=W+300;}
-  if(shakeAmt>.2){const a=Math.min(5,shakeAmt)*SHAKE_MUL[shakeLvl];scene.cameras.main.centerOn(W/2+rnd(-a,a),H/2+rnd(-a,a));shakeAmt*=.88;}
-  else if(shakeAmt!==0){shakeAmt=0;scene.cameras.main.centerOn(W/2,H/2);}
+  for(const e of embers){e.x+=e.vx*dt;e.y+=e.vy*dt;e.ph+=dt*3;if(e.y<-10||e.x<-10){e.x=rnd(WW*.3,WW+40);e.y=H+10;}}
+  for(const f of fogs){f.x+=f.v*dt;if(f.x>WW+300)f.x=-300;if(f.x<-300)f.x=WW+300;}
 }
 
 
@@ -1709,7 +1716,7 @@ function renderDropTip(){
   const R=RAR[best.it.r];
   const html='<b style="color:'+R.c+'">'+SLOTS[best.it.s].ic+' '+best.it.n+' · '+R.n+'</b>'+best.it.af.map(afxText).join('<br>')+'<br><small>คลิกเพื่อเก็บ</small>';
   if(t._h!==html){t._h=html;t.innerHTML=html;}
-  t._v=1;t.style.display='block';t.style.left=(mouse.x/W*100)+'%';t.style.top=(mouse.y/H*100)+'%';
+  t._v=1;t.style.display='block';t.style.left=(mouse.sx/W*100)+'%';t.style.top=(mouse.y/H*100)+'%';
 }
 function sOrb(el,f,html){
   f=Math.round(clamp(f,0,1)*100)/100;
@@ -1720,13 +1727,14 @@ let shopOpen=false,shopSig='';
 function toggleShop(){shopOpen=!shopOpen;$('shop').style.display=shopOpen?'block':'none';shopSig='';}
 function renderShop(p){
   if(!shopOpen)return;
-  const sig=Math.floor(p.gold)+'|'+p.pots.hp+p.pots.mp+'|'+p.buffs.hp+p.buffs.mp+p.buffs.dmg+p.buffs.regen;
+  const sig=Math.floor(p.gold)+'|'+p.pots.hp+p.pots.mp+'|'+p.buffs.hp+p.buffs.mp+p.buffs.dmg+p.buffs.regen+p.buffs.cdr+'|'+Math.round(churchHp/Math.max(1,churchMax)*100)+'|'+churchRepairs+'|'+wave;
   if(sig===shopSig)return;shopSig=sig;
   let h='<div class="hd"><b>ร้านค้า (B ปิด)</b><span>🪙 '+Math.floor(p.gold)+'</span></div>';
   for(const id of SHOP_IDS){
-    const s=SHOP[id],c=shopCost(p,id),pot=id==='hpPot'||id==='mpPot';
-    const cur=pot?p.pots[id==='hpPot'?'hp':'mp']:p.buffs[id],mx=pot?s.cap:s.max,maxed=cur>=mx;
-    h+='<div class="srow"><span class="si">'+s.ic+'</span><span class="st2">'+s.n+' <small>'+s.d+' · '+cur+'/'+mx+'</small></span><button data-id="'+id+'"'+(maxed||p.gold<c?' disabled':'')+'>'+(maxed?'เต็ม':'🪙 '+c)+'</button></div>';
+    const s=SHOP[id],c=shopCost(p,id),pot=id==='hpPot'||id==='mpPot',rpr=id==='repair';
+    const cur=rpr?0:(pot?p.pots[id==='hpPot'?'hp':'mp']:p.buffs[id]),mx=pot?s.cap:s.max,maxed=rpr?churchHp>=churchMax:cur>=mx;
+    const info=rpr?('โบสถ์ '+Math.round(churchHp/Math.max(1,churchMax)*100)+'%'):(cur+'/'+mx);
+    h+='<div class="srow"><span class="si">'+s.ic+'</span><span class="st2">'+s.n+' <small>'+s.d+' · '+info+'</small></span><button data-id="'+id+'"'+(maxed||p.gold<c?' disabled':'')+'>'+(maxed?'เต็ม':'🪙 '+c)+'</button></div>';
   }
   const el=$('shop');el.innerHTML=h;
   el.querySelectorAll('button[data-id]').forEach(b=>{b.onclick=()=>buyCmd(b.dataset.id);});
@@ -1851,10 +1859,19 @@ function skipWave(){
 }
 function updMouse(e){
   const r=canvas.getBoundingClientRect();
-  mouse.x=(e.clientX-r.left)/r.width*W;mouse.y=(e.clientY-r.top)/r.height*H;
+  mouse.sx=(e.clientX-r.left)/r.width*W;mouse.x=mouse.sx+camX;mouse.y=(e.clientY-r.top)/r.height*H;mouse.in=true;
 }
 /* ---- เดินขึ้น/ลง (W/S หรือลูกศร หรือปุ่มบนจอ) ---- */
-const held={up:false,down:false};let lastMv=0;
+const held={up:false,down:false},camHeld={l:false,r:false};let lastMv=0;
+function updateCam(dt){
+  let d=(camHeld.r?1:0)-(camHeld.l?1:0);
+  if(!d&&mouse.in){if(mouse.sx<22)d=-1;else if(mouse.sx>W-22)d=1;}
+  if(paused||state==='menu'||state==='over'||state==='classSelect')d=0;
+  camX=clamp(camX+d*640*dt,0,WW-W);
+  scene.cameras.main.centerOn(W/2+camX,H/2);
+  let far=0;for(const m of enemies)if(m.x>camX+W+10)far++;
+  const fi=$('farInd');sT(fi,far?('▶ ผีกำลังมา '+far+' (เลื่อนจอ D / →)'):'');sD(fi,far&&camX<WW-W?'block':'none');
+}
 function applyMove(){
   let d=(held.down?1:0)-(held.up?1:0);
   if(paused||state==='menu'||state==='over'||state==='classSelect')d=0;
@@ -1866,24 +1883,29 @@ function applyMove(){
 }
 function bindMove(){
   window.addEventListener('keydown',e=>{
-    if(e.code==='KeyW'||e.code==='ArrowUp'){held.up=true;e.preventDefault();}
+    if(e.code==='KeyA'||e.code==='ArrowLeft'){camHeld.l=true;e.preventDefault();}
+    else if(e.code==='KeyD'||e.code==='ArrowRight'){camHeld.r=true;e.preventDefault();}
+    else if(e.code==='KeyW'||e.code==='ArrowUp'){held.up=true;e.preventDefault();}
     else if(e.code==='KeyS'||e.code==='ArrowDown'){held.down=true;e.preventDefault();}
   });
   window.addEventListener('keyup',e=>{
-    if(e.code==='KeyW'||e.code==='ArrowUp')held.up=false;
+    if(e.code==='KeyA'||e.code==='ArrowLeft')camHeld.l=false;
+    else if(e.code==='KeyD'||e.code==='ArrowRight')camHeld.r=false;
+    else if(e.code==='KeyW'||e.code==='ArrowUp')held.up=false;
     else if(e.code==='KeyS'||e.code==='ArrowDown')held.down=false;
   });
-  window.addEventListener('blur',()=>{held.up=held.down=false;});
+  window.addEventListener('blur',()=>{held.up=held.down=false;camHeld.l=camHeld.r=false;});
   const hold=(id,k)=>{const b=$(id);const on=e=>{held[k]=true;e.preventDefault();},off=()=>{held[k]=false;};
     b.addEventListener('pointerdown',on);b.addEventListener('pointerup',off);b.addEventListener('pointerleave',off);b.addEventListener('pointercancel',off);};
   hold('mvUp','up');hold('mvDown','down');
+  for(const [id,k] of [['camL','l'],['camR','r']]){const b=$(id);const on=e=>{camHeld[k]=true;e.preventDefault();},off=()=>{camHeld[k]=false;};b.addEventListener('pointerdown',on);b.addEventListener('pointerup',off);b.addEventListener('pointerleave',off);b.addEventListener('pointercancel',off);}
   $('bSound').onclick=()=>{audInit();audToggle();$('bSound').textContent='เสียง: '+SND_NAME[AUD.mode];};
   $('bSound').textContent='เสียง: '+SND_NAME[AUD.mode];
 }
 function bindInput(){
   bindMove();
   ['pointerdown','keydown'].forEach(ev=>window.addEventListener(ev,()=>audInit(),{passive:true}));
-  canvas.addEventListener('pointermove',updMouse);
+  $('stage').addEventListener('pointermove',updMouse);$('stage').addEventListener('pointerleave',()=>{mouse.in=false;});
   canvas.addEventListener('contextmenu',e=>e.preventDefault());
   canvas.addEventListener('pointerdown',e=>{
     updMouse(e);
@@ -1935,8 +1957,8 @@ function create(){
     const t=this.add.text(0,0,'',{fontFamily:'Arial, sans-serif',fontSize:'16px',fontStyle:'bold',color:'#ffffff',stroke:'#000000',strokeThickness:3}).setDepth(5).setOrigin(.5,1).setVisible(false).setResolution(RS);
     popPool.push(t);
   }
-  for(let i=0;i<70;i++)embers.push({x:rnd(0,W),y:rnd(0,H),vx:rnd(-22,-6),vy:rnd(-46,-12),s:rnd(1,2.6),ph:rnd(0,6.28)});
-  for(let i=0;i<6;i++)fogs.push({x:rnd(0,W),y:rnd(540,660),w:rnd(500,900),h:rnd(50,90),a:.05,v:rnd(-14,14)});
+  for(let i=0;i<70;i++)embers.push({x:rnd(0,WW),y:rnd(0,H),vx:rnd(-22,-6),vy:rnd(-46,-12),s:rnd(1,2.6),ph:rnd(0,6.28)});
+  for(let i=0;i<6;i++)fogs.push({x:rnd(0,WW),y:rnd(540,660),w:rnd(500,900),h:rnd(50,90),a:.05,v:rnd(-14,14)});
   canvas=this.game.canvas;
   this.cameras.main.setZoom(RS);this.cameras.main.centerOn(W/2,H/2);
   bindInput();
@@ -1948,7 +1970,7 @@ function update(time,delta){
     if(!paused&&(state==='intermission'||state==='wave')){for(let k=0;k<speed;k++)step(dt);}
     if(net.role==='host'&&net.started&&state!=='over'){net.acc+=dt;if(net.acc>=1/(net.tp==='room'?8:15)){net.acc=0;netSnap();}}
   }
-  applyMove();
+  applyMove();updateCam(dt);
   if(net.role!=='guest'){const sl=drainLocalSfx();playSfxSets(sl[0],sl[1],ctl);}
   ambient(dt);
   render();
@@ -2226,7 +2248,7 @@ function joinViaPeer(code){
   peer.on('error',e=>lobStatus(e.type==='peer-unavailable'?'ไม่พบห้องนี้ ตรวจรหัสอีกครั้ง':'เชื่อมต่อผิดพลาด ('+e.type+')'));
 }
 function guestStart(n,idx){
-  nP=n;ctl=idx;net.idx=idx;net.started=true;net.emap=new Map();net.mmap=new Map();minions=[];trees=[];
+  camX=0;nP=n;ctl=idx;net.idx=idx;net.started=true;net.emap=new Map();net.mmap=new Map();minions=[];trees=[];
   state='intermission';T=0;wave=0;players=[];enemies=[];projs=[];zones=[];walls=[];fx=[];popups=[];sched=[];spawnQ=[];bossRef=null;ann=null;
   classChosen=false;targeting=-1;paused=false;shakeAmt=0;skillKey='';
   $('mLobby').classList.add('hide');$('mMenu').classList.add('hide');$('mEnd').classList.add('hide');$('mClass').classList.add('hide');
@@ -2248,7 +2270,7 @@ function onHostMsg(m){
 }
 function applyS(s){
   if(state==='over')return;
-  playSfxSets(s.sf||{},s.sg||{},ctl);
+  playSfxSets(s.sf||{},s.sg||{},ctl);churchRepairs=s.cr||0;
   if(players.length!==s.p.length){players=s.p.map((_,i)=>makePlayer(i));buildParty();skillKey='';}
   s.p.forEach((a,i)=>{
     const p=players[i];
@@ -2300,7 +2322,7 @@ function applyV(v){
   if(state==='over')return;
   drops=(v.dr||[]).map(a=>({id:a[0],x:a[1],y:a[2],it:{r:a[3],s:a[4],n:a[5],af:a[6]}}));
   projs=v.b.map(a=>({x:a[0],y:a[1],vx:a[2],vy:a[3],kind:a[4],col:a[5],r:a[6],dead:false}));
-  ebolts=(v.eb||[]).map(a=>({x:a[0],y:a[1],vx:a[2],vy:a[3],col:a[4],dead:false}));
+  ebolts=(v.eb||[]).map(a=>({x:a[0],y:a[1],vx:a[2],vy:a[3],col:a[4],big:!!a[5],dead:false}));
   {const seen=new Set();
    minions=(v.mn||[]).map(a=>{let w=net.mmap.get(a[0]);if(!w){w={id:a[0],own:a[1],x:a[2],y:a[3],age:rnd(0,3),isM:true,atkAnim:0};net.mmap.set(a[0],w);}
      w.tx=a[2];w.ty=a[3];w.hp=a[4];w.max=100;w.face=a[5];w.flash=a[6];w.kind=a[7]?'elephant':'wolf';seen.add(a[0]);return w;});

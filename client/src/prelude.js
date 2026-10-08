@@ -2,7 +2,8 @@
 const $=id=>document.getElementById(id);
 const fmt=n=>Math.round(n).toLocaleString('en-US');
 let scene,gfx,canvas,popPool=[],RS=1;
-const mouse={x:760,y:520};
+const mouse={x:760,y:520,sx:640,in:false};
+let camX=0;
 const net={role:null,tp:null,started:false,conns:[],hostConn:null,peer:null,left:0,emap:new Map(),acc:0,code:'',idx:0,lobbyHost:false,lobbyN:0,names:[],mmap:new Map()};
 const embers=[],fogs=[];
 let toastTimer=0;
@@ -40,7 +41,7 @@ const HK={
   gtoast:m=>{uiToast(m);if(net.role==='host')netSend({t:'toast',m});},
   onEnd:(win,reason)=>{if(net.role==='host'){netSnap();netSend({t:'end',win,reason});}showEnd(win,reason);},
   onChurchHit:()=>{const h=$('hurt');h.classList.add('on');setTimeout(()=>h.classList.remove('on'),180);},
-  onStart:()=>{$('mMenu').classList.add('hide');$('mEnd').classList.add('hide');$('mClass').classList.add('hide');$('mPause').classList.add('hide');buildParty();skillKey='';$('bSpeed').textContent='ความเร็ว ×1';},
+  onStart:()=>{camX=0;$('mMenu').classList.add('hide');$('mEnd').classList.add('hide');$('mClass').classList.add('hide');$('mPause').classList.add('hide');buildParty();skillKey='';$('bSpeed').textContent='ความเร็ว ×1';},
   onClassOpen:()=>showClassSelect(),
   onPick:()=>classWaitRender(),
   onClassConfirm:()=>{skillKey='';$('mClass').classList.add('hide');},

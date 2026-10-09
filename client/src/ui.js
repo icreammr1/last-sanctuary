@@ -579,7 +579,7 @@ function joinViaPeer(code){
   peer.on('error',e=>lobStatus(e.type==='peer-unavailable'?'ไม่พบห้องนี้ ตรวจรหัสอีกครั้ง':'เชื่อมต่อผิดพลาด ('+e.type+')'));
 }
 function guestStart(n,idx){
-  camX=0;nP=n;ctl=idx;net.idx=idx;net.started=true;net.emap=new Map();net.mmap=new Map();minions=[];trees=[];
+  camX=0;net.endShown=false;nP=n;ctl=idx;net.idx=idx;net.started=true;net.emap=new Map();net.mmap=new Map();minions=[];trees=[];
   state='intermission';T=0;wave=0;players=[];enemies=[];projs=[];zones=[];walls=[];fx=[];popups=[];sched=[];spawnQ=[];bossRef=null;ann=null;
   classChosen=false;targeting=-1;paused=false;shakeAmt=0;skillKey='';
   $('mLobby').classList.add('hide');$('mMenu').classList.add('hide');$('mEnd').classList.add('hide');$('mClass').classList.add('hide');
@@ -617,7 +617,7 @@ function applyS(s){
   if(s.ch<churchHp-.5){const h=$('hurt');h.classList.add('on');setTimeout(()=>h.classList.remove('on'),180);}
   churchHp=s.ch;churchMax=s.cm;churchFlash=s.cf;net.speed=s.sp||1;if(s.sh>0)shake(s.sh);
   ann=s.an?{t:s.an.t,s:s.an.s,until:T+s.an.r}:null;
-  const prev=state;state=s.s;
+  const prev=state;state=(s.s==='over')?state:s.s;   // รอข้อความ end ก่อน ไม่งั้นหน้าสรุปจะไม่ขึ้น
   if(state==='classSelect'&&prev!=='classSelect')showClassSelect();
   if(prev==='classSelect'&&state!=='classSelect')$('mClass').classList.add('hide');
   zones=s.z.map(z=>({kind:z.k,x:z.x,y:z.y,r:z.r,until:z.u,sd:z.sd}));

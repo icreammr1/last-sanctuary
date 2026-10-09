@@ -271,15 +271,15 @@ function showEnd(win,reason){
   const rp=$('replayBtn');
   if(rp)rp.onclick=()=>{m.classList.add('hide');startGame(nP,botsOn,[getName()]);};
 }
-function goLobby(){$('mEnd').classList.add('hide');net.started=false;state='menu';lobMsg='';net.lobbyN=0;net.names=[];$('mLobby').classList.remove('hide');lobbyRender();netToHost({t:'lobby'});}
-function guestEnd(win,reason){if(state==='over')return;state='over';targeting=-1;showEnd(win,reason);}
+function goLobby(){net.endShown=false;$('mEnd').classList.add('hide');net.started=false;state='menu';lobMsg='';net.lobbyN=0;net.names=[];$('mLobby').classList.remove('hide');lobbyRender();netToHost({t:'lobby'});}
+function guestEnd(win,reason){if(net.endShown)return;net.endShown=true;state='over';targeting=-1;showEnd(win,reason);}
 const HK={
   localSfx:true,
   toast:m=>uiToast(m),
   gtoast:m=>{uiToast(m);if(net.role==='host')netSend({t:'toast',m});},
   onEnd:(win,reason)=>{if(net.role==='host'){netSnap();netSend({t:'end',win,reason});}showEnd(win,reason);},
   onChurchHit:()=>{const h=$('hurt');h.classList.add('on');setTimeout(()=>h.classList.remove('on'),180);},
-  onStart:()=>{camX=0;$('mMenu').classList.add('hide');$('mEnd').classList.add('hide');$('mClass').classList.add('hide');$('mPause').classList.add('hide');buildParty();skillKey='';$('bSpeed').textContent='ความเร็ว ×1';},
+  onStart:()=>{camX=0;net.endShown=false;$('mMenu').classList.add('hide');$('mEnd').classList.add('hide');$('mClass').classList.add('hide');$('mPause').classList.add('hide');buildParty();skillKey='';$('bSpeed').textContent='ความเร็ว ×1';},
   onClassOpen:()=>showClassSelect(),
   onPick:()=>classWaitRender(),
   onClassConfirm:()=>{skillKey='';$('mClass').classList.add('hide');},
@@ -575,6 +575,7 @@ function kill(m){
   const pl=players[m.last];if(pl)pl.kills++;
   giveExp(m);
   if(m.type==='boss1'){for(const p of players)p.sp++;gtoast('เปรตราชาพ่ายแล้ว! ทุกคนได้ +1 แต้มสกิล');}
+  if(m.type==='boss2'){spawnQ=[];for(const e of enemies){if(e!==m&&!e.dead){e.dead=true;fx.push({k:'soul',x:e.x,y:ecy(e),col:e.col,t:0,dur:.9,sz:e.size});}}gtoast('พญาผีล้มแล้ว! ลูกน้องสลายหายไปทั้งหมด');}
   if(m===bossRef)bossRef=null;
 }
 function giveExp(m){
@@ -2297,7 +2298,7 @@ function joinViaPeer(code){
   peer.on('error',e=>lobStatus(e.type==='peer-unavailable'?'ไม่พบห้องนี้ ตรวจรหัสอีกครั้ง':'เชื่อมต่อผิดพลาด ('+e.type+')'));
 }
 function guestStart(n,idx){
-  camX=0;nP=n;ctl=idx;net.idx=idx;net.started=true;net.emap=new Map();net.mmap=new Map();minions=[];trees=[];
+  camX=0;net.endShown=false;nP=n;ctl=idx;net.idx=idx;net.started=true;net.emap=new Map();net.mmap=new Map();minions=[];trees=[];
   state='intermission';T=0;wave=0;players=[];enemies=[];projs=[];zones=[];walls=[];fx=[];popups=[];sched=[];spawnQ=[];bossRef=null;ann=null;
   classChosen=false;targeting=-1;paused=false;shakeAmt=0;skillKey='';
   $('mLobby').classList.add('hide');$('mMenu').classList.add('hide');$('mEnd').classList.add('hide');$('mClass').classList.add('hide');
@@ -2335,7 +2336,7 @@ function applyS(s){
   if(s.ch<churchHp-.5){const h=$('hurt');h.classList.add('on');setTimeout(()=>h.classList.remove('on'),180);}
   churchHp=s.ch;churchMax=s.cm;churchFlash=s.cf;net.speed=s.sp||1;if(s.sh>0)shake(s.sh);
   ann=s.an?{t:s.an.t,s:s.an.s,until:T+s.an.r}:null;
-  const prev=state;state=s.s;
+  const prev=state;state=(s.s==='over')?state:s.s;   // รอข้อความ end ก่อน ไม่งั้นหน้าสรุปจะไม่ขึ้น
   if(state==='classSelect'&&prev!=='classSelect')showClassSelect();
   if(prev==='classSelect'&&state!=='classSelect')$('mClass').classList.add('hide');
   zones=s.z.map(z=>({kind:z.k,x:z.x,y:z.y,r:z.r,until:z.u,sd:z.sd}));

@@ -139,6 +139,7 @@ function kill(m){
   const pl=players[m.last];if(pl)pl.kills++;
   giveExp(m);
   if(m.type==='boss1'){for(const p of players)p.sp++;gtoast('เปรตราชาพ่ายแล้ว! ทุกคนได้ +1 แต้มสกิล');}
+  if(m.type==='boss2'){spawnQ=[];for(const e of enemies){if(e!==m&&!e.dead){e.dead=true;fx.push({k:'soul',x:e.x,y:ecy(e),col:e.col,t:0,dur:.9,sz:e.size});}}gtoast('พญาผีล้มแล้ว! ลูกน้องสลายหายไปทั้งหมด');}
   if(m===bossRef)bossRef=null;
 }
 function giveExp(m){

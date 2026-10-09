@@ -33,15 +33,15 @@ function showEnd(win,reason){
   const rp=$('replayBtn');
   if(rp)rp.onclick=()=>{m.classList.add('hide');startGame(nP,botsOn,[getName()]);};
 }
-function goLobby(){$('mEnd').classList.add('hide');net.started=false;state='menu';lobMsg='';net.lobbyN=0;net.names=[];$('mLobby').classList.remove('hide');lobbyRender();netToHost({t:'lobby'});}
-function guestEnd(win,reason){if(state==='over')return;state='over';targeting=-1;showEnd(win,reason);}
+function goLobby(){net.endShown=false;$('mEnd').classList.add('hide');net.started=false;state='menu';lobMsg='';net.lobbyN=0;net.names=[];$('mLobby').classList.remove('hide');lobbyRender();netToHost({t:'lobby'});}
+function guestEnd(win,reason){if(net.endShown)return;net.endShown=true;state='over';targeting=-1;showEnd(win,reason);}
 const HK={
   localSfx:true,
   toast:m=>uiToast(m),
   gtoast:m=>{uiToast(m);if(net.role==='host')netSend({t:'toast',m});},
   onEnd:(win,reason)=>{if(net.role==='host'){netSnap();netSend({t:'end',win,reason});}showEnd(win,reason);},
   onChurchHit:()=>{const h=$('hurt');h.classList.add('on');setTimeout(()=>h.classList.remove('on'),180);},
-  onStart:()=>{camX=0;$('mMenu').classList.add('hide');$('mEnd').classList.add('hide');$('mClass').classList.add('hide');$('mPause').classList.add('hide');buildParty();skillKey='';$('bSpeed').textContent='ความเร็ว ×1';},
+  onStart:()=>{camX=0;net.endShown=false;$('mMenu').classList.add('hide');$('mEnd').classList.add('hide');$('mClass').classList.add('hide');$('mPause').classList.add('hide');buildParty();skillKey='';$('bSpeed').textContent='ความเร็ว ×1';},
   onClassOpen:()=>showClassSelect(),
   onPick:()=>classWaitRender(),
   onClassConfirm:()=>{skillKey='';$('mClass').classList.add('hide');},

@@ -102,7 +102,7 @@ class Room {
     const HK = {
       toast() {},
       gtoast(m) { room.broadcast({ t: 'toast', m }); },
-      onEnd(win, reason) { room.sendSnaps(); room.ended = true; room.broadcast({ t: 'end', win, reason }); room.endTimer = setTimeout(() => room.destroy(), 10 * 60 * 1000); },
+      onEnd(win, reason) { room.sendSnaps(); room.ended = true; room.result = { win, reason }; room.broadcast({ t: 'end', win, reason }); room.endTimer = setTimeout(() => room.destroy(), 10 * 60 * 1000); },
       onChurchHit() {}, onStart() {}, onClassOpen() {}, onPick() {}, onClassConfirm() {},
       autoConfirm: () => true,
     };
@@ -182,6 +182,7 @@ function handle(c, m) {
       if (prevWs !== c.ws) { try { prevWs.close(); } catch (e) { /* ignore */ } }
       r.game.playerBack(c.idx);
       r.send(c, { t: 'start', n: r.clients.length, idx: c.idx });
+      if (r.ended && r.result) { for (const m of r.game.buildSnaps()) r.send(c, m); r.send(c, { t: 'end', win: r.result.win, reason: r.result.reason }); }
       break;
     }
     case 'lobby':
